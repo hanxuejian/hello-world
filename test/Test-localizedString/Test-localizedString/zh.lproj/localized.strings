@@ -1,0 +1,11 @@
+/* 
+  localized.strings
+  Test-localizedString
+
+  Created by han on 2017/2/25.
+  Copyright © 2017年 han. All rights reserved.
+*/
+
+"name"="martin";
+"labelTitle"="简体中文";
+"buttonTitle"="切换语言";

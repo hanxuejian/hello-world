@@ -1,0 +1,10 @@
+/* 
+  Localizable.strings
+  Test-localizedString
+
+  Created by han on 2017/2/25.
+  Copyright © 2017年 han. All rights reserved.
+*/
+
+"name"="Martin (localizable English)";
+""="if not give the bundle,and the table,default using the main bundle,Localizble.strings of the system langage";

@@ -1,0 +1,10 @@
+/* 
+  localized.strings
+  Test-localizedString
+
+  Created by han on 2017/2/25.
+  Copyright © 2017年 han. All rights reserved.
+*/
+
+"name"="martin";
+"default"="this is default value";
