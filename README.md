@@ -1,5 +1,6 @@
-# hello-world
-this is my first repository
+## Hello world
 
-hi,all
-  this is my first repository ,please support me ,thanks !
+This is my first repository
+
+Hi,all,
+this is my first repository ,please support me ,thanks !
