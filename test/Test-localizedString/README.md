@@ -4,8 +4,7 @@
 
 iOS中的`NSBundle.h`中提供了本地化的实现方法：
 
-`/* Method for retrieving localized strings. */
-- (NSString *)localizedStringForKey:(NSString *)key value:(NSString *)value table:(NSString *)tableName NS_FORMAT_ARGUMENT(1);`
+`- (NSString *)localizedStringForKey:(NSString *)key value:(NSString *)value table:(NSString *)tableName NS_FORMAT_ARGUMENT(1);`
 
 * key 查找的字符串的唯一标识
 * value 查找的字符串的默认值
@@ -22,10 +21,10 @@ iOS中的`NSBundle.h`中提供了本地化的实现方法：
 一般可以直接使用`NSBundle.h`中定义的宏
 
 ```
-\#define NSLocalizedString(key, comment) [[NSBundle mainBundle] localizedStringForKey:(key) value:@"" table:nil]
-\#define NSLocalizedStringFromTable(key, tbl, comment) [[NSBundle mainBundle] localizedStringForKey:(key) value:@"" table:(tbl)]
-\#define NSLocalizedStringFromTableInBundle(key, tbl, bundle, comment) [bundle localizedStringForKey:(key) value:@"" table:(tbl)]
-\#define NSLocalizedStringWithDefaultValue(key, tbl, bundle, val, comment) [bundle localizedStringForKey:(key) value:(val) table:(tbl)]
+#define NSLocalizedString(key, comment) [[NSBundle mainBundle] localizedStringForKey:(key) value:@"" table:nil]
+#define NSLocalizedStringFromTable(key, tbl, comment) [[NSBundle mainBundle] localizedStringForKey:(key) value:@"" table:(tbl)]
+#define NSLocalizedStringFromTableInBundle(key, tbl, bundle, comment) [bundle localizedStringForKey:(key) value:@"" table:(tbl)]
+#define NSLocalizedStringWithDefaultValue(key, tbl, bundle, val, comment) [bundle localizedStringForKey:(key) value:(val) table:(tbl)]
 ```
 
 * **NSLocalizedString(key, comment)**
