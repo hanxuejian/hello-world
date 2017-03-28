@@ -112,7 +112,9 @@
 }
 ```
 
-### <span id = "MonitoringAccessoryRelatedEvents">[监控配件相关事件](id:MonitoringAccessoryRelatedEvents)</span>
+### <span id = "MonitoringAccessoryRelatedEvents">[监控配件相关事件](id:MonitoringAccessoryRelatedEvents1)</span>
+
+[test](id:MonitoringAccessoryRelatedEvents)
 
 当硬件配件连接或断开连接时，扩展配件框架均能发送通知。但其并不会自动发送通知，这需要你的应用调用类 EAAccessoryManager 的方法 [registerForLocalNotifications](https://developer.apple.com/reference/externalaccessory/eaaccessorymanager/1613873-registerforlocalnotifications) 明确指出接收通知。当配件连接，通过认证，并准备与你的应用通讯，该框架会发送 [EAAccessoryDidConnectNotification](https://developer.apple.com/reference/foundation/nsnotification.name/1613827-eaaccessorydidconnect) 通知,当配件断开连接，其会发送[EAAccessoryDidDisconnectNotification](https://developer.apple.com/reference/foundation/nsnotification.name/1613901-eaaccessorydiddisconnect)通知。你可以使用通知中心注册接收这两个通知，并且这两个通知里包含有配件对象的信息。
 
