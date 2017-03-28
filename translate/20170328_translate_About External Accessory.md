@@ -29,7 +29,7 @@
 ##### 与配件通讯
 一个应用通过创建类 EASession 对象来管理与配件的通讯及交互，该类对象同系统底层合作传输或接收数据包。在应用中，数据的传输是通过 NSInputStream 和 NSOutputStream 对象进行的，这两个流对象都是在通讯连接开始时，由会话对象生成的。为了接收数据，需要自定义的代理类监听输入流，而发送数据，需要将数据包写入输出流，而接收与发送的数据包的格式由你与配件通讯时采用的协议决定。
 
-相关文档：[连接配件](#ConnectingtoanAccessory)、[监控配件相关事件](#Monitoring Accessory-Related Events)
+相关文档：[连接配件](#ConnectingtoanAccessory)、[监控配件相关事件](#MonitoringAccessory-RelatedEvents)
 
 #### 参见
 获取扩展配件框架类信息，请参考[External Accessory Framework Reference](https://developer.apple.com/reference/externalaccessory)
@@ -112,7 +112,7 @@
 }
 ```
 
-### [监控配件相关事件](id:Monitoring Accessory-Related Events)
+### [监控配件相关事件](id:MonitoringAccessory-RelatedEvents)
 当硬件配件连接或断开连接时，扩展配件框架均能发送通知。但其并不会自动发送通知，这需要你的应用调用类 EAAccessoryManager 的方法 [registerForLocalNotifications](https://developer.apple.com/reference/externalaccessory/eaaccessorymanager/1613873-registerforlocalnotifications) 明确指出接收通知。当配件连接，通过认证，并准备与你的应用通讯，该框架会发送 [EAAccessoryDidConnectNotification](https://developer.apple.com/reference/foundation/nsnotification.name/1613827-eaaccessorydidconnect) 通知,当配件断开连接，其会发送[EAAccessoryDidDisconnectNotification](https://developer.apple.com/reference/foundation/nsnotification.name/1613901-eaaccessorydiddisconnect)通知。你可以使用通知中心注册接收这两个通知，并且这两个通知里包含有配件对象的信息。
 
 除了通过通知中心接收通知外，同配件通讯的应用还可以通给类 EAAccessory 对象的代理对象赋值，以获取变更提醒。代理对象必须遵循[EAAccessoryDelegate](https://developer.apple.com/reference/externalaccessory/eaaccessorydelegate)代理协议，该协议包含一个可选的方法[accessoryDidDisconnect:](https://developer.apple.com/reference/externalaccessory/eaaccessorydelegate/1613858-accessorydiddisconnect)。你可以实现这个方法来接收配件断开连接的通知，而不必开始的时候设置通知监听。
