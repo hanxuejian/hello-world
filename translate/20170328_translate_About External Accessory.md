@@ -29,13 +29,13 @@
 ##### 与配件通讯
 一个应用通过创建类 EASession 对象来管理与配件的通讯及交互，该类对象同系统底层合作传输或接收数据包。在应用中，数据的传输是通过 NSInputStream 和 NSOutputStream 对象进行的，这两个流对象都是在通讯连接开始时，由会话对象生成的。为了接收数据，需要自定义的代理类监听输入流，而发送数据，需要将数据包写入输出流，而接收与发送的数据包的格式由你与配件通讯时采用的协议决定。
 
-相关文档：[连接配件](#Connecting to an Accessory)、[监控配件相关事件](#Monitoring Accessory-Related Events)
+相关文档：[连接配件](#ConnectingtoanAccessory)、[监控配件相关事件](#Monitoring Accessory-Related Events)
 
 #### 参见
 获取扩展配件框架类信息，请参考[External Accessory Framework Reference](https://developer.apple.com/reference/externalaccessory)
 
 ---
-### [连接配件](id:Connecting to an Accessory)
+### [连接配件](id:ConnectingtoanAccessory)
 配件在被系统连接及做好使用准备之前对扩展配件框架是不可见的，当配件可以使用时，你的应用会获取一个合适的配件对象，并使用配件支持的协议打开一个会话。
 
 类 [EAAccessoryManager](https://developer.apple.com/reference/externalaccessory/eaaccessorymanager) 的共享对象为应用提供了与配件通讯的主入口点，该类提供了一个列表，包含所有已经连接的配件对象，你可以遍历这些对象找到一个你的应用支持的对象。配件类 [EAAccessory](https://developer.apple.com/reference/externalaccessory/eaaccessory) 对象中的大多信息（如名称、厂商、模式信息）只是用于显示，而为了你的应用能够连接配件，你需要查看配件的协议，并保证其中至少一个协议是你的应用所支持的。
