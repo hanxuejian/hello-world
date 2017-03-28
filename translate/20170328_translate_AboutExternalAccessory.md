@@ -9,7 +9,7 @@
 
 要与厂商生产的配件相通讯，你必须知道该配件所支持的协议，为了避免冲突，协议名称应使用反向域名字符串，这就使得厂商能够定义出足够的协议名称以支持其生产的配件。
 
-> 注：如果你想要成为一个 iPad、iPhone、iPod 的配件开发者，可以访问 http://developer.apple.com
+> 注：如果你想要成为一个 iPad、iPhone、iPod 的配件开发者，可以访问 [苹果官网](http://developer.apple.com)
 
 #### 概述
 与配件通讯，你需要从硬件厂商那里获取配件的必要信息，由此，你才可使用扩展配件框架中的类使配件与你的应用进行通讯。
@@ -21,7 +21,6 @@
 应用若要与配件通讯，必须在 Info.plist 文件中声明其所支持的协议。声明所支持的协议，系统才能在配件连接后加载该应用，如果设备上没有安装支持所连接的配件的应用，那么，系统会打开应用商店，并指出支持的应用。
 
 在 Info.plist 文件中添加键值 UISupportedExternalAccessoryProtocols 以声明你的应用所支持的协议。该键值对应一个包含字符串的数组，存储你的应用所支持的所有协议，可以是无序且任意个数的。系统会使用该列表判断你的应用能否与配件通讯，而不会决定你的应用具体使用哪个协议通讯。至于使用的是哪个协议，当配件与应用开始通讯时，由你的代码选择合适的通讯协议。
-
 
 获取更多应用中有关 Info.plist 文件的键值信息，查看 [Information Property List Key Reference](https://developer.apple.com/library/content/documentation/General/Reference/InfoPlistKeyReference/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009247)。
 
@@ -85,6 +84,7 @@
     return session;
 }
 ```
+
 配置好输入输出流之后，最后一步是处理流相关的数据，列表 2 给出了流数据处理代码的代理方法的基本结构。该方法会响应配件的输入输出流的事件，当配件传送数据给应用时，事件发生，说明有数据待读取。同样，当配件准备接收数据是，事件也会表明该事实。（当然，在流可以写数据之前，应用不必一直等待事件的发生，可以调用流方法 [hasBytesAvailable](https://developer.apple.com/reference/foundation/inputstream/1409410-hasbytesavailable) 来判断配件是否仍然能够接收数据。）获取更多流信息及流相关事件，查看[Stream Programming Guide](https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/Streams/Streams.html#//apple_ref/doc/uid/10000188i)
 
 列表 2 处理流事件
@@ -110,6 +110,7 @@
 }
 ```
 
+---
 ### <span id = "MonitoringAccessoryRelatedEvents">监控配件相关事件</span>
 
 当硬件配件连接或断开连接时，扩展配件框架均能发送通知。但其并不会自动发送通知，这需要你的应用调用类 EAAccessoryManager 的方法 [registerForLocalNotifications](https://developer.apple.com/reference/externalaccessory/eaaccessorymanager/1613873-registerforlocalnotifications) 明确指出接收通知。当配件连接，通过认证，并准备与你的应用通讯，该框架会发送 [EAAccessoryDidConnectNotification](https://developer.apple.com/reference/foundation/nsnotification.name/1613827-eaaccessorydidconnect) 通知,当配件断开连接，其会发送[EAAccessoryDidDisconnectNotification](https://developer.apple.com/reference/foundation/nsnotification.name/1613901-eaaccessorydiddisconnect)通知。你可以使用通知中心注册接收这两个通知，并且这两个通知里包含有配件对象的信息。
