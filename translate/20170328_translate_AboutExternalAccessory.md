@@ -1,6 +1,8 @@
 # [扩展配件编程话题](https://developer.apple.com/library/content/featuredarticles/ExternalAccessoryPT/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009498-SW1)
 
+
 ## [介绍](https://developer.apple.com/library/content/featuredarticles/ExternalAccessoryPT/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009498-SW1)
+
 
 ### 关于扩展配件
 扩展配件框架([ExternalAccessory.framework](https://developer.apple.com/reference/externalaccessory))提供了连接到基于iOS设备的配件与iOS设备之间进行通信的方法。应用开发人员可以通过此方法将配件的特性集成到自己的应用中。
