@@ -242,7 +242,7 @@ union MoneyUnion { float alone; double down; };
 ```
 
 |属性声明|编码后得到的描述字符串|
-|:----:|:----:|
+|:----|:----|
 |@property char charDefault;|Tc,VcharDefault|
 |@property long longDefault;|Tl,VlongDefault|
 |@property signed signedDefault;|Ti,VsignedDefault|
