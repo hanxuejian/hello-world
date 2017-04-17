@@ -149,7 +149,7 @@ for ( i = 0 ; i < 1000 ; i++ ) {
 ### 类型编码[](id:encode)
 为了支持运行时系统，编译器将方法的返回类型及参数类型编码成一个字符串并将其与方法选择器相关联，为了方便其使用，编译器提供了命令 `@encode(type)` 可以直接传入类型参数，得到编码结果，一般，能够被 `sizeof(type)` 的参数都可以作为编码的参数。
 
-|待编码的类型|编码后的结果|
+|编码后的结果|待编码的类型|
 |:---:|:----:|
 |c|char|
 |i|int|
@@ -188,8 +188,76 @@ typedef struct example {
     char *aString;
     int  anInt;
 } Example;
-{example=@*i}
+
+其相关的编码结果如下：
+@encode(Example) 与 @encode(struct example)有相同结果 {example=@*i}
+
+@encode(Example *) 与 @encode(struct example *)有相同结果 ^{example=@*i}
+
+@encode(Example **) 编码结果为 ^^{example}
+
+而对于类的编码类似于 {className=#} ，如 
+@encode(NSObject) => {NSObject=#}
+@encode(NSString) => {NSString=#}
 
 ```
+另外，对于在协议中声明方法时，使用的关键字也有对应的编码值，尽管 @encode() 命令不会返回编码值。
+
+|编码后的结果|待编码的关键字|
+|:---:|:----:|
+|r|const|
+|n|in|
+|N|inout|
+|o|out|
+|O|bycopy|
+|R|byref|
+|V|oneway|
+
+### 属性类型声明
+在使用运行时函数时，可以动态获取类的属性声明或修改器属性声明，这里也会如上面的类型编码一样，使用 @encode() 命令。属性特性的编码如下表：
+
+|编码结果|属性特性含义|
+|:----:|:-----:|
+|R|readonly|
+|C|copy|
+|&|retain|
+|N|nonatomic|
+|G<methodName>|自定义获取属性值的方法，如 GisFirstPosition|
+|S<methodName>|自定义设置属性值的方法，如 SsetPosition|
+|D|@dynamic|
+|W|__weak|
+|P|该属性用于垃圾回收|
+|t<encoding>|指定该类型使用旧版本的编码类型|
+
+使用运行时方法获取属性特性编码的字符串有特定格式，其以大写字母 `T` 开始，其后跟随编码类型（多个类型用逗号分隔），最后以 大写字母 `V` 跟随变量名结束。如以下例子：
+
+```
+enum FooManChu { FOO, MAN, CHU };
+
+struct YorkshireTeaStruct { int pot; char lady; };
+
+typedef struct YorkshireTeaStruct YorkshireTeaStructType;
+
+union MoneyUnion { float alone; double down; };
+```
+
+|属性声明|编码后得到的描述字符串|
+|:----:|:----:|
+|@property char charDefault;|Tc,VcharDefault|
+|@property long longDefault;|Tl,VlongDefault|
+|@property signed signedDefault;|Ti,VsignedDefault|
+|@property unsigned unsignedDefault;|TI,VunsignedDefault|
+|@property enum FooManChu enumDefault;|Ti,VenumDefault|
+|@property struct YorkshireTeaStruct structDefault;|T{YorkshireTeaStruct="pot"i"lady"c},VstructDefault|
+|@property YorkshireTeaStructType typedefDefault;|T{YorkshireTeaStruct="pot"i"lady"c},VtypedefDefault|
+|@property union MoneyUnion unionDefault;|T(MoneyUnion="alone"f"down"d),VunionDefault|
+|@property int (\*functionPointerDefault)(char \*);|T^?,VfunctionPointerDefault|
+|@property int intSynthEquals;<br>In the implementation block:<br>**@synthesize intSynthEquals=_intSynthEquals;**|Ti,V_intSynthEquals|
+|@property(getter=isIntReadOnlyGetter, readonly) int intReadonlyGetter;|Ti,R,GisIntReadOnlyGetter|
+|@property(readwrite) int intReadwrite;|Ti,VintReadwrite|
+|@property(nonatomic, readonly, copy) id idReadonlyCopyNonatomic;|T@,R,C,VidReadonlyCopyNonatomic|
+|@property(nonatomic, readonly, retain) id idReadonlyRetainNonatomic;|T@,R,&,VidReadonlyRetainNonatomic|
+
+详细列表请见官方文档[Property Attribute Description Examples](https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/ObjCRuntimeGuide/Articles/ocrtPropertyIntrospection.html#//apple_ref/doc/uid/TP40008048-CH101-SW5)
 
 
