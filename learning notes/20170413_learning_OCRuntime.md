@@ -63,7 +63,133 @@ for ( i = 0 ; i < 1000 ; i++ ) {
 
 ```
 
-这里需要注意的是，使用 `methodForSelector` 获取的方法需要进行类型转换，返回类型及参数均需要转换。转换时，前两个餐食是必须的也是固定的，分别为：消息接收者与方法选择器，而其后的参数的个数是任意的，这取决于你所要调用的方法，其返回类型也是一样。
+这里需要注意的是，使用 `methodForSelector` 获取的方法需要进行类型转换，返回类型及参数均需要转换。转换时，前两个参数是必须的，也是固定的，分别为：消息接收者与方法选择器，而其后的参数的个数是任意的，这取决于你所要调用的方法，其返回类型也是一样。
 
 这种绕过消息传送机制的做法比直接使用消息传送要节约时间，但也仅仅在一个方法不断反复调用时才有意义，如上面的例程那样，并且方法 `methodForSelector` 是运行时系统所提供的特性，而不是 Objective-C 语言本身的特性。
+
+### 动态绑定方法与消息转发机制
+从上面的叙述可知，当一个类对象接收一个消息时，他先后查询自己及父类的方法表直到根类，而如若仍然没有找到相应的方法来执行，那么程序就会崩溃报错么？其实不然，运行时系统提供了一种机制，给予了其第二次机会来处理消息，可分以下三步：
+
+1. 使用运行时函数 `class_addMethod(Class cls, SEL name, IMP imp, const char *types)` 添加新的方法
+	
+	在 NSObject 类中有两个方法
+		+ (BOOL)resolveClassMethod:(SEL)sel __OSX_AVAILABLE_STARTING(__MAC_10_5, __IPHONE_2_0);
+		+ (BOOL)resolveInstanceMethod:(SEL)sel __OSX_AVAILABLE_STARTING(__MAC_10_5, __IPHONE_2_0);
+	
+	我们可以重写这两个方法，当重写该方法的类无法处理某个消息时，便会调用这两个方法中的一个，第一个方法是类方法未找到时的处理方法，后者是在实例方法未找到时调用。
+	
+	```
+	+ (BOOL)resolveInstanceMethod:(SEL)sel {
+	    IMP testMethod1 = [self instanceMethodForSelector:@selector(testMethod1)];
+	    class_addMethod([self class] ,sel, testMethod1, "v@:");
+	    return YES;
+	}
+
+	- (void)testMethod1 {
+	    NSLog(@"%@",NSStringFromSelector(_cmd));
+	}
+	```
+	动态函数 **BOOL class_addMethod(Class cls, SEL name, IMP imp, const char \*types);** 中有4个参数：                                 
+		
+	* cls   ，添加方法到指定的类中
+	* name  ，添加的方法的名称	
+	* imp   ，实现该方法的地址
+	* types ，[描述方法的返回类型及参数类型的字符数组](#encode)
+
+	可见，这种动态绑定的方法，可以推迟方法与实现代码的关联。而当该处理方法未实现或者无效时，消息转入第二步。
+	
+2. 将消息转发给其他类对象 
+	
+	使用 NSObject 中的方法 `- (id)forwardingTargetForSelector:(SEL)aSelector;`
+	
+	这个方法可以将消息转发给其他类对象，如果判断某对象可以响应该消息，则返回该对象，然后由该对象执行相关方法。
+	
+	```
+	- (id)forwardingTargetForSelector:(SEL)aSelector {
+	    if ([self.object respondsToSelector:aSelector]) {
+	        return self.object;
+	    }
+	    return [super forwardingTargetForSelector:aSelector];
+	}
+	```
+	如果该步骤仍然无法处理消息，则转入第三步
+	
+3. 消息转发
+	
+	当前步骤也是消息转发，与上一步只能转发给指定的一个对象不同，该方法可以转发给多个对象，重写 NSObject 的如下方法：
+	
+	
+	```
+	- (NSMethodSignature *)methodSignatureForSelector:(SEL)aSelector {
+	
+	    NSMethodSignature *signature = [super methodSignatureForSelector:aSelector];
+	    if (!signature){
+	    	signature = [NSMethodSignature signatureWithObjCTypes:"v@:"];
+	    }
+	    return signature;
+	}
+
+	- (void)forwardInvocation:(NSInvocation *)anInvocation {	    
+	    if ([self.object1 respondsToSelector:anInvocation.selector]) {
+	        
+	        [anInvocation invokeWithTarget:self.object1];
+	    }
+	    if ([self.object2 respondsToSelector:anInvocation.selector]) {
+	        
+	        [anInvocation invokeWithTarget:self.object2];
+	    }
+	}
+	
+	```
+	
+	在该步骤中，运行时系统会先调用方法 `methodSignatureForSelector:` ，该方法生成一个 `NSMethodSignature` 对象，该对象包含有 `aSelector` 的返回类型及参数的字符描述数组，得到非空的 `NSMethodSignature` 对象后，使用该对象生成 `NSInvocation` 对象，这个对象封装了消息的接收者及方法信息，并传递给方法 `forwardInvocation:` ，而后根据情况选择响应消息的对象。
+
+最终，若仍然没有类对象处理消息，那么，系统会调用 NSObject 中的方法 `- (void)doesNotRecognizeSelector:(SEL)aSelector;` 抛出错误，当然，可以重写这个方法，不抛出异常，但最后不要这样做。
+
+### 类型编码[](id:encode)
+为了支持运行时系统，编译器将方法的返回类型及参数类型编码成一个字符串并将其与方法选择器相关联，为了方便其使用，编译器提供了命令 `@encode(type)` 可以直接传入类型参数，得到编码结果，一般，能够被 `sizeof(type)` 的参数都可以作为编码的参数。
+
+|待编码的类型|编码后的结果|
+|:---:|:----:|
+|c|char|
+|i|int|
+|s|short|
+|l|long|
+|q|long long|
+|C|unsigned char|
+|I|unsigned int|
+|S|unsigned short|
+|L|unsigned long|
+|Q|unsigned long long|
+|f|float|
+|d|double|
+|B|C++ bool 或 C99 _Bool|
+|v|void|
+|*|char *|
+|@|id 或 静态类型|
+|#|Class|
+|:|SEL|
+|[array type]|数组|
+|{name=type···}|结构体|
+|(name=type···)|内联体|
+|b**num**|指定位数的比特位|
+|^**type**|指向某个类型的指针|
+|?|未知类型|
+
+如下面几个例子
+
+```
+//数组：包含12个指向浮点类型的指针
+[12^f]
+
+//结构体
+typedef struct example {
+    id   anObject;
+    char *aString;
+    int  anInt;
+} Example;
+{example=@*i}
+
+```
+
 
