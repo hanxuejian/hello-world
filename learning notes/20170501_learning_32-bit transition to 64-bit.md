@@ -90,7 +90,7 @@ iOS 应用依赖底层应用接口与系统架构，从 iOS 7 开始，一些 iO
     	另外，枚举类型同样可以定义枚举变量大小，所以其大小可能与预想的不一样，
     	故不应假定其数据的长度，而是在赋值时，将其赋值给合适的数据类型变量。
  
-	![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2017/pic-201705-02.png)
+	![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2017/pic-20170501-02.png)
 
 * Cocoa Touch 中常用类型的变化
 
