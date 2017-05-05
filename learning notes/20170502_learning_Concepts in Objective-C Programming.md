@@ -152,11 +152,11 @@ MVC 有多个基础的设计模式组合而成，这些基础的设计模式分�
 
 传统的 MVC 通常是用户查看操作视图，触发事件，然后控制器修改数据或刷新视图，或者当视图监听到数据发生改变，进行视图的刷新，如下图：
 
-![](https://github.com/hanxuejian/hello-world/tree/raw/pictures/2017/pic-20170502-01.png)
+![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2017/pic-20170502-01.png)
 
 对于现行的 Cocoa MVC 模式，其与传统的 MVC 设计模式很相似，实际上，其完全可以基于上图的的结构进行设计，而采用绑定技术，视图监听数据模型的变化更加直接简便。但是，视图显示数据，数据模型封装数据，为了提高效率，会经常性的复用他们，所以在设计时，将两者分开，不让其直接发生交互，更有利于他们的复用。两者的区别可参见下图：
 
-![](https://github.com/hanxuejian/hello-world/tree/raw/pictures/2017/pic-20170502-02.png)
+![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2017/pic-20170502-02.png)
 
 可见，控制器新增了 Mediator 模式与原有的 Strategy 模式共同协调数据在视图与数据模型之间传递，数据模型则通过控制器与视图传递数据，而视图则融合了由 target-action 机制实现的 Command 模式。
 
@@ -170,7 +170,7 @@ target-action 机制使得视图对象与用户的输入及选择能够进行交
 
 在拥有良好 Cocoa MVC 设计的应用中，协调控制器经常含有中间控制器（从 nib 文件中解档而来），他们之间的关系如下图：
 
-![](https://github.com/hanxuejian/hello-world/tree/raw/pictures/2017/pic-20170502-03.png)
+![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2017/pic-20170502-03.png)
 
 ### MVC 应用的设计要点
 * 能够使用 NSController 的子类作为中间控制类便没有必要使用 NSObject 的子类作为控制器
