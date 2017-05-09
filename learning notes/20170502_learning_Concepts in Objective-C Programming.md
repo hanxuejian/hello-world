@@ -205,17 +205,41 @@ target-action 机制使得视图对象与用户的输入及选择能够进行交
 * Key Paths ，键路径是由点与键相间组成的字符串，可以用来贯穿对象的属性，第一个键决定访问的属性，第二个键决定访问的属性的属性，以此类推
 
 ## 对象的可变性
-在 Cocoa 中，出于某些考虑，将对象分为可变的与不可变的。在编程过程中，可依据以下几点进行选择：
+在 Cocoa 中，出于某些考虑，将对象分为可变的与不可变的。如下面的可变类型：
+
+```
+NSMutableArray
+NSMutableDictionary
+NSMutableSet
+NSMutableIndexSet
+NSMutableCharacterSet
+NSMutableData
+NSMutableString
+NSMutableAttributedString
+NSMutableURLRequest
+```
+在编程过程中，可依据以下几点进行选择：
 
 * 当创建的变量内容需要逐渐且频繁修改时，使用可变变量
 * 诸如赋值等操作，应使用新的不可变变量替代原不可变得变量
 * 根据返回的变量类型决定使用何种变量
 * 若不确定，应使用不可变的变量
 
-## Outlets
-**出口**是表示对象的属性是连接到其他对象的，而这个对象通常是由 IB 解压而来。使用 IBOutlet 来使 IB 识别其是一个出口属性，使用 weak 来防止强引用循环。
+## 出口
+**出口（Outlets）**是表示对象的属性是连接到其他对象的，而这个对象通常是由 IB 解压而来。使用 IBOutlet 来使 IB 识别其是一个出口属性，使用 weak 来防止强引用循环。
 
 ```
 @interface AppController : NSObject
 @property (weak) IBOutlet NSArray *keywords;
+```
+
+## 监察者模式
+**监察者模式（Receptionist Pattern）**完成了事件的重定向，即当某件事发生在一个执行上下文时，转而由另一个执行上下文进行处理。这个设计模式融合了命令行（Command），消息（Memo）及代理（Proxy）等模式，事件由一个对象接收，但由另一个对象处理。
+
+KVO 就是这种设计模式的一种实践。在 KVO 模式中，让监察者对象监察某一个对象的状态，调用方法 **addObserver:forKeyPath:options:** ，当该对象的状态发生变化，则监察者对象会执行固定的方法 **observeValueForKeyPath:ofObject:change:context:** ，所以监察者对象都要实现该方法。
+
+```
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey, id> *)change context:(void *)context;
+
+- (void)addObserver:(NSObject *)observer forKeyPath:(NSString *)keyPath options:(NSKeyValueObservingOptions)options context:(void *)context;
 ```
