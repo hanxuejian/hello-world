@@ -243,3 +243,38 @@ KVO 就是这种设计模式的一种实践。在 KVO 模式中，让监察者�
 
 - (void)addObserver:(NSObject *)observer forKeyPath:(NSString *)keyPath options:(NSKeyValueObservingOptions)options context:(void *)context;
 ```
+
+## 目标-处理
+代理、绑定、通知等技术对于程序中对象间的通讯很有用处，但是他们并不适用于所有情况。对于与用户交互的控件，接收硬件设备因用户操作而产生的事件，而后转换为相应的指令，但是这个事件仅仅给出了用户的动作，如点击鼠标或按钮，而不能提供更多信息来表明用户的意图。所以，在事件转换为指令的过程中，需要一种机制来表示用户的目的，这种机制就是**目标-处理（target-action）**。
+
+* Target ，目标是动作处理消息的接收者，可以是任意类，通常接收控件发送来的消息
+* Action ，处理动作是控件发送给目标的消息，从目标的角度看，就是目标为响应消息而实现的方法
+
+## 免桥接
+在 Core Foundation 框架与 Foundation 之间，一些变量类型可以相互转换，这种能力就叫做**免桥接（toll-free bridging）**。
+
+如下面的代码，除了变量，内存的管理方法也可以混用
+
+```
+NSLocale *gbNSLocale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_GB"];
+CFLocaleRef gbCFLocale = (CFLocaleRef) gbNSLocale;
+CFStringRef cfIdentifier = CFLocaleGetIdentifier (gbCFLocale);
+NSLog(@"cfIdentifier: %@", (NSString *)cfIdentifier);
+// logs: "cfIdentifier: en_GB"
+CFRelease((CFLocaleRef) gbNSLocale);
+//
+CFLocaleRef myCFLocale = CFLocaleCopyCurrent();
+NSLocale * myNSLocale = (NSLocale *) myCFLocale;
+[myNSLocale autorelease];
+NSString *nsIdentifier = [myNSLocale localeIdentifier];
+CFShow((CFStringRef) [@"nsIdentifier: " stringByAppendingString:nsIdentifier]);
+// logs identifier for current locale
+```
+
+但是，也不是所有的变量都是免桥接的，如下表中的变量：
+
+|Foundation|Core Foundation|
+|:----:|:-----:|
+|NSRunLoop|CFRunLoopRef|
+|NSBundle|CFBundleRef|
+|NSDateFormatter|CFDateFormatterRef|
