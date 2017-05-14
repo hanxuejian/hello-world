@@ -5,5 +5,32 @@ Git 是一种免费且开源的分布式版本控制系统，其可以高效且�
 
 ## Git 命令
 git init
-git  add
-git commit -m ""
+git  add <file>
+git commit -m "<comment message>"
+git status 
+git diff <file>
+git log
+git log --pretty=oneline
+HEAD 表示当前版本
+HEAD^ 表示上一个版本
+HEAD^^ 表示上上个版本
+HEAD~100 表示上100个版本
+git reset --hard HEAD^
+git reset --hard <commit ID>
+git reflog //查看使用的git命令记录日志
+git diff HEAD -- <file name> //查看工作区文件与版本库中最新版本的区别
+git reset HEAD <file name> //撤销添加到暂存区的文件修改
+git checkout -- <file name> //撤销工作区文件的修改
+git rm <file name> //从版本库中删除文件
+在服务器上部署Git后，创建一个远程代码库，将已经创建的本地库关联该远程库，使用命令git remote add origin git@<server-name:path>/<repository-name.git>
+
+关联后，使用命令git push -u origin master第一次推送master分支的所有内容
+
+此后，每次本地提交后，只要有必要，就可以使用命令git push origin master推送最新修改
+
+git clone <repository path> //拷贝远程库到本地
+
+git branch //查看分支
+git branch <branch name> //创建一个分支
+git checkout <branch name> //切换到指定分支
+git checkout -b <branch name> //创建一个新的分支，并切换到该分支
