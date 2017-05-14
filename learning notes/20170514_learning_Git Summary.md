@@ -34,3 +34,9 @@ git branch //查看分支
 git branch <branch name> //创建一个分支
 git checkout <branch name> //切换到指定分支
 git checkout -b <branch name> //创建一个新的分支，并切换到该分支
+git merge <branch name> //合并指定的分支到当前的分支
+git branch -d <branch name> //删除指定的分支
+git log --graph //查看分支合并图
+git merge --no-ff -m "<comment message>" <branch name> //禁用 Fast forward 模式，保留分支历史信息
+git stash //保存当前的工作现场
+git stash list //查看保存的工作现场
