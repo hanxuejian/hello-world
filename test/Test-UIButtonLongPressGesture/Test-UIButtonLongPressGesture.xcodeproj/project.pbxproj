@@ -1,0 +1,332 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		3365C5E11ED73319005C7414 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 3365C5E01ED73319005C7414 /* main.m */; };
+		3365C5E41ED73319005C7414 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 3365C5E31ED73319005C7414 /* AppDelegate.m */; };
+		3365C5E71ED73319005C7414 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3365C5E61ED73319005C7414 /* ViewController.m */; };
+		3365C5EA1ED73319005C7414 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3365C5E81ED73319005C7414 /* Main.storyboard */; };
+		3365C5EC1ED73319005C7414 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3365C5EB1ED73319005C7414 /* Assets.xcassets */; };
+		3365C5EF1ED73319005C7414 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3365C5ED1ED73319005C7414 /* LaunchScreen.storyboard */; };
+		3365C6051ED7372A005C7414 /* NSButton+SA.m in Sources */ = {isa = PBXBuildFile; fileRef = 3365C6041ED7372A005C7414 /* NSButton+SA.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		3365C5DC1ED73319005C7414 /* Test-UIButtonLongPressGesture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Test-UIButtonLongPressGesture.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		3365C5E01ED73319005C7414 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		3365C5E21ED73319005C7414 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		3365C5E31ED73319005C7414 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		3365C5E51ED73319005C7414 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
+		3365C5E61ED73319005C7414 /* ViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
+		3365C5E91ED73319005C7414 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		3365C5EB1ED73319005C7414 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		3365C5EE1ED73319005C7414 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		3365C5F01ED73319005C7414 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		3365C6031ED7372A005C7414 /* NSButton+SA.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSButton+SA.h"; sourceTree = "<group>"; };
+		3365C6041ED7372A005C7414 /* NSButton+SA.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSButton+SA.m"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3365C5D91ED73319005C7414 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3365C5D31ED73319005C7414 = {
+			isa = PBXGroup;
+			children = (
+				3365C5DE1ED73319005C7414 /* Test-UIButtonLongPressGesture */,
+				3365C5DD1ED73319005C7414 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		3365C5DD1ED73319005C7414 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3365C5DC1ED73319005C7414 /* Test-UIButtonLongPressGesture.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		3365C5DE1ED73319005C7414 /* Test-UIButtonLongPressGesture */ = {
+			isa = PBXGroup;
+			children = (
+				3365C6021ED7372A005C7414 /* UIButton(SA) */,
+				3365C5E21ED73319005C7414 /* AppDelegate.h */,
+				3365C5E31ED73319005C7414 /* AppDelegate.m */,
+				3365C5E51ED73319005C7414 /* ViewController.h */,
+				3365C5E61ED73319005C7414 /* ViewController.m */,
+				3365C5E81ED73319005C7414 /* Main.storyboard */,
+				3365C5EB1ED73319005C7414 /* Assets.xcassets */,
+				3365C5ED1ED73319005C7414 /* LaunchScreen.storyboard */,
+				3365C5F01ED73319005C7414 /* Info.plist */,
+				3365C5DF1ED73319005C7414 /* Supporting Files */,
+			);
+			path = "Test-UIButtonLongPressGesture";
+			sourceTree = "<group>";
+		};
+		3365C5DF1ED73319005C7414 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				3365C5E01ED73319005C7414 /* main.m */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		3365C6021ED7372A005C7414 /* UIButton(SA) */ = {
+			isa = PBXGroup;
+			children = (
+				3365C6031ED7372A005C7414 /* NSButton+SA.h */,
+				3365C6041ED7372A005C7414 /* NSButton+SA.m */,
+			);
+			path = "UIButton(SA)";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3365C5DB1ED73319005C7414 /* Test-UIButtonLongPressGesture */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3365C5F31ED73319005C7414 /* Build configuration list for PBXNativeTarget "Test-UIButtonLongPressGesture" */;
+			buildPhases = (
+				3365C5D81ED73319005C7414 /* Sources */,
+				3365C5D91ED73319005C7414 /* Frameworks */,
+				3365C5DA1ED73319005C7414 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Test-UIButtonLongPressGesture";
+			productName = "Test-UIButtonLongPressGesture";
+			productReference = 3365C5DC1ED73319005C7414 /* Test-UIButtonLongPressGesture.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3365C5D41ED73319005C7414 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0810;
+				ORGANIZATIONNAME = han;
+				TargetAttributes = {
+					3365C5DB1ED73319005C7414 = {
+						CreatedOnToolsVersion = 8.1;
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 3365C5D71ED73319005C7414 /* Build configuration list for PBXProject "Test-UIButtonLongPressGesture" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 3365C5D31ED73319005C7414;
+			productRefGroup = 3365C5DD1ED73319005C7414 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3365C5DB1ED73319005C7414 /* Test-UIButtonLongPressGesture */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3365C5DA1ED73319005C7414 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3365C5EF1ED73319005C7414 /* LaunchScreen.storyboard in Resources */,
+				3365C5EC1ED73319005C7414 /* Assets.xcassets in Resources */,
+				3365C5EA1ED73319005C7414 /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3365C5D81ED73319005C7414 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3365C6051ED7372A005C7414 /* NSButton+SA.m in Sources */,
+				3365C5E71ED73319005C7414 /* ViewController.m in Sources */,
+				3365C5E41ED73319005C7414 /* AppDelegate.m in Sources */,
+				3365C5E11ED73319005C7414 /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		3365C5E81ED73319005C7414 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				3365C5E91ED73319005C7414 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		3365C5ED1ED73319005C7414 /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				3365C5EE1ED73319005C7414 /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		3365C5F11ED73319005C7414 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVES = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.1;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		3365C5F21ED73319005C7414 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVES = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.1;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		3365C5F41ED73319005C7414 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = "Test-UIButtonLongPressGesture/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "test.Test-UIButtonLongPressGesture";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		3365C5F51ED73319005C7414 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = "Test-UIButtonLongPressGesture/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "test.Test-UIButtonLongPressGesture";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3365C5D71ED73319005C7414 /* Build configuration list for PBXProject "Test-UIButtonLongPressGesture" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3365C5F11ED73319005C7414 /* Debug */,
+				3365C5F21ED73319005C7414 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3365C5F31ED73319005C7414 /* Build configuration list for PBXNativeTarget "Test-UIButtonLongPressGesture" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3365C5F41ED73319005C7414 /* Debug */,
+				3365C5F51ED73319005C7414 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 3365C5D41ED73319005C7414 /* Project object */;
+}
