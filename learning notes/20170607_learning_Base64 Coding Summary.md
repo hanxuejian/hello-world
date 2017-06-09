@@ -28,7 +28,8 @@ iOS 官方接口 **NSData** 的分类 **NSDataBase64Encoding** 中提供了 Base
 @interface NSData (NSDataBase64Encoding)
 
 /* 
-使用经过 Base64 编码后的字符串，初始化一个 NSData 类实例，这里就是将 Base64 编码后的字符串进行了解码，得到原始的二进制数据
+使用经过 Base64 编码后的字符串，初始化一个 NSData 类实例，
+这里就是将 Base64 编码后的字符串进行了解码，得到原始的二进制数据
 */
 - (instancetype)initWithBase64EncodedString:(NSString *)base64String options:(NSDataBase64DecodingOptions)options NS_AVAILABLE(10_9, 7_0);
 
@@ -38,7 +39,8 @@ iOS 官方接口 **NSData** 的分类 **NSDataBase64Encoding** 中提供了 Base
 - (NSString *)base64EncodedStringWithOptions:(NSDataBase64EncodingOptions)options NS_AVAILABLE(10_9, 7_0);
 
 /* 
-使用经过 Base64 编码后得到的二进制数据，初始化一个 NSData 类实例，这里就是将 Base64 编码后的二进制数据进行了解码，得到原始的二进制数据
+使用经过 Base64 编码后得到的二进制数据，初始化一个 NSData 类实例，
+这里就是将 Base64 编码后的二进制数据进行了解码，得到原始的二进制数据
 */
 - (instancetype)initWithBase64EncodedData:(NSData *)base64Data options:(NSDataBase64DecodingOptions)options NS_AVAILABLE(10_9, 7_0);
 
@@ -49,7 +51,8 @@ iOS 官方接口 **NSData** 的分类 **NSDataBase64Encoding** 中提供了 Base
 
 @end
 
-上面4种方法，可看做两组方法，分别进行了编码和解码操作，只是前两个方法，编码的结果和解码的入参都是字符串作，后两种是二进制数据。
+上面4种方法，可看做两组方法，分别进行了编码和解码操作，
+只是前两个方法，编码的结果和解码的入参都是字符串，后两种是二进制数据。
 ```
 
 除了调用 iOS 提供的方法，还可以自己实现 Base64 编码及解码，如下：
