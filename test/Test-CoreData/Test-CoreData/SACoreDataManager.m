@@ -1,13 +1,13 @@
 //
-//  SACoreDataManage.m
+//  SACoreDataManager.m
 //  CoreDataDemo
 //
 //  Created by HanXueJian on 15-11-20.
 //
 //
-#import "SACoreDataManage.h"
+#import "SACoreDataManager.h"
 
-@interface SACoreDataManage () {
+@interface SACoreDataManager () {
     NSManagedObjectContext *_managedObjectContext;
     NSManagedObjectModel *_managedObjectModel;
     NSPersistentStoreCoordinator *_persistentStoreCoordinator;
@@ -15,18 +15,18 @@
 
 @end
 
-@implementation SACoreDataManage
+@implementation SACoreDataManager
 
 #pragma mark - get shared core data manage
-+ (SACoreDataManage *)sharedCoreDataManage {
++ (SACoreDataManager *)sharedCoreDataManager {
     
-    static SACoreDataManage *sharedCoreDataManage = nil;
+    static SACoreDataManager *sharedCoreDataManager = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        sharedCoreDataManage = [[SACoreDataManage alloc] init];
+        sharedCoreDataManager = [[SACoreDataManager alloc] init];
     });
     
-    return sharedCoreDataManage;
+    return sharedCoreDataManager;
 }
 
 #pragma mark - insert a new data method
@@ -35,14 +35,14 @@
                                   inManagedObjectContext:[self managedObjectContext]];
 }
 
-#pragma mark -save inserted data method
-- (NSError *)saveInsertedObject {
-    NSError *error=nil;
+#pragma mark - save data's changes method
+- (NSError *)saveChanges {
+    NSError *error = nil;
     [[self managedObjectContext] save:&error];
     return error;
 }
 
-#pragma mark -search data method
+#pragma mark - search data method
 - (NSArray *)searchDataByEntityName:(NSString *)entityName andPredicateFormat:(NSString *)format {
     
     NSFetchRequest* request=[[NSFetchRequest alloc]init];
@@ -57,18 +57,25 @@
     return [[self managedObjectContext] executeFetchRequest:request error:NULL];
 }
 
-#pragma mark -remove data method
+#pragma mark - remove data method
 - (void)removeDataByEntityName:(NSString *)entityName andPredicateFormat:(NSString *)format {
     NSArray *data = [self searchDataByEntityName:entityName andPredicateFormat:format];
     for(id object in data) {
         [[self managedObjectContext] deleteObject:object];
     }
-    [self saveInsertedObject];
+    [self saveChanges];
 }
 
+#pragma mark - get object with object ID
 - (id)objectWithID:(NSManagedObjectID *)objectID {
     return [[self managedObjectContext]objectWithID:objectID];
 }
+
+#pragma mark - get managed object context
++ (NSManagedObjectContext *)sharedContext {
+    return [[self sharedCoreDataManager] managedObjectContext];
+}
+
 
 #pragma mark - Core Data stack
 
@@ -120,7 +127,8 @@
     
     NSError *error = nil;
     _persistentStoreCoordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:[self managedObjectModel]];
-    if (![_persistentStoreCoordinator addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:storeURL options:nil error:&error]) {
+    NSPersistentStore *persistentStore = [_persistentStoreCoordinator addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:storeURL options:nil error:&error];
+    if (!persistentStore) {
         /*
          Replace this implementation with code to handle the error appropriately.
          
