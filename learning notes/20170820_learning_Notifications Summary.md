@@ -92,9 +92,9 @@
 **UNUserNotificationCenterDelegate** 接收到推送通知的代理，有下面两个代理方法：
 
 ```
-///当应用在前台运行并且接收到推送通知时，调用该方法
+///当应用在前台运行，并且接收到推送通知时，调用该方法
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center willPresentNotification:(UNNotification *)notification withCompletionHandler:(void (^)(UNNotificationPresentationOptions options))completionHandler __IOS_AVAILABLE(10.0) __TVOS_AVAILABLE(10.0) __WATCHOS_AVAILABLE(3.0);
 
-///当用户点击通知消息，进而应用进入前台运行或开启时，调用该方法
+///当应用在后台运行，则用户点击通知消息，应用进入前台运行，并调用该方法
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center didReceiveNotificationResponse:(UNNotificationResponse *)response withCompletionHandler:(void(^)())completionHandler __IOS_AVAILABLE(10.0) __WATCHOS_AVAILABLE(3.0) __TVOS_PROHIBITED;
 ```
