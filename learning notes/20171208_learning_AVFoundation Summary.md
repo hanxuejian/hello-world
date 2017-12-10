@@ -158,7 +158,7 @@ typedef void (^AVAssetImageGeneratorCompletionHandler)(CMTime requestedTime, CGI
 }
 ```
 
-## Playback
+## 媒体资源播放
 使用一个 **AVPlayer** 类实例可以管理一个 asset 资源，但是它的属性 **currentItem** 才是 asset 的实际管理者。currentItem 是 **AVPlayerItem** 类的实例，而它的属性 **tracks** 包含着的 **AVPlayerItemTracker** 实例对应着 asset 中的各个 track 。
 
 那么，为了控制 asset 的播放，可以使用 **AVPlayer** 类，在播放的过程中，可以使用 **AVPlayerItem** 实例管理整个 asset 的状态，使用 **AVPlayerItemTracker** 对象管理 asset 中每个 track 的状态。另外，还可以使用 **AVPlayerLayer** 类来显示播放的内容。
@@ -232,7 +232,7 @@ item 的 **currentTime** 属性值表示当前 item 的播放时间，可以调�
 
 当 item 播放结束后，再次调用 player 的方法 play 不会使 item 重新播放，要实现重播，可以注册一个 ** AVPlayerItemDidPlayToEndTimeNotification** 通知，当接收到这个通知时，可以调 **seekToTime:** 方法，传入 **kCMTimeZero** 参数，将 player 的播放时间重置。
 
-## Editing
+## 媒体资源编辑基本类
 AVFoundation 框架中提供了丰富的接口用于视听资源的编辑，其中的关键是 **composition** ，它将不同的 asset 相结合并形成一个新的 asset 。使用 **AVMutableComposition** 类可以增删 asset 来将指定的 asset 集合到一起。除此之外，若想集合到一起的视听资源以自定义的方式进行播放，需要使用 **AVMutableAudioMix** 和 **AVMutableVideoComposition** 类对其中的资源进行协调管理。最终要使用 **AVAssetExportSession** 类将编辑的内容保存到文件中。
 
 ### AVComposition
@@ -316,4 +316,233 @@ AVMutableComposition 中也提供了过滤 AVMutableCompositionTrack 的接口
 - (NSArray<AVMutableCompositionTrack *> *)tracksWithMediaCharacteristic:(NSString *)mediaCharacteristic;
 ```
 
+### AVCompositionTrack
+AVCompositionTrack 类同其父类 **AVAssetTrack** 一样是媒体资源的管理者，它实际是媒体资源数据的集合，它的属性 **segments** 是 **AVCompositionTrackSegment** 类的实例对象集合，每个对象描述一个媒体数据片段。对于 AVCompositionTrack 并不常用，通常使用的是它的子类 **AVMutableCompositionTrack** 。
 
+### AVMutableCompositionTrack
+AVMutableCompositionTrack 中提供的属性如下：
+
+```
+//没有外部数值指定时的媒体1秒的时间粒度
+@property (nonatomic) CMTimeScale naturalTimeScale;
+
+//当前 track 相关联的语言编码
+@property (nonatomic, copy, nullable) NSString *languageCode;
+
+//当前 track 相关联的额外语言编码
+@property (nonatomic, copy, nullable) NSString *extendedLanguageTag;
+
+//对于可显示的媒体数据应优先选择的仿射变换设置，默认值为 CGAffineTransformIdentity
+@property (nonatomic) CGAffineTransform preferredTransform;
+
+//应优先选择的音量，默认值为 1
+@property (nonatomic) float preferredVolume;
+
+//当前track 所包含的所有的媒体数据片段，对于这些片段，它们构成了 track 的完整时间线，
+//所以他们的时间线不可以重叠，并且第一个数据片段的时间从 kCMTimeZero 开始，依次往后的时间必须连续不间断、不重叠
+@property (nonatomic, copy, null_resettable) NSArray<AVCompositionTrackSegment *> *segments;
+```
+当我们获取了一个 AVMutableCompositionTrack 实例对象后，便可以通过以下方法对其进行添加或移除数据片段
+
+```
+//将已存在的资源文件指定时间范围的媒体数据插入到当前 composition 的指定时间处
+//如果 startTime 为 kCMTimeInvalid 值，那么数据被添加到 composition 的最后
+- (BOOL)insertTimeRange:(CMTimeRange)timeRange ofTrack:(AVAssetTrack *)track atTime:(CMTime)startTime error:(NSError * _Nullable * _Nullable)outError;
+
+//这个方法与上述方法类似，只是可以批量操作，但是注意提供的时间范围不能重叠
+- (BOOL)insertTimeRanges:(NSArray<NSValue *> *)timeRanges ofTracks:(NSArray<AVAssetTrack *> *)tracks atTime:(CMTime)startTime error:(NSError * _Nullable * _Nullable)outError NS_AVAILABLE(10_8, 5_0);
+
+//插入一个没有媒体数据的时间段，当这个范围之前的媒体资源播放结束后，不会立刻播放之后的媒体数据，而是会静默一段时间
+- (void)insertEmptyTimeRange:(CMTimeRange)timeRange;
+
+//移除一段时间范围的媒体数据，该方法不会导致该 track 从 composition 中移除，只是移除与时间范围相交的数据片段
+- (void)removeTimeRange:(CMTimeRange)timeRange;
+
+//改变某个时间范围内的时间的时长，实质是改变了媒体数据的播放速率
+//其速率是原时长与现时长的比值，总之，媒体数据是要按时长播放的
+- (void)scaleTimeRange:(CMTimeRange)timeRange toDuration:(CMTime)duration;
+
+//判断数据片段的时间线是否重叠
+- (BOOL)validateTrackSegments:(NSArray<AVCompositionTrackSegment *> *)trackSegments error:(NSError * _Nullable * _Nullable)outError;
+```
+
+### AVAssetTrackSegment
+媒体资源 AVAsset 中的集合 AVAssetTrack 管理着单条时间线上的媒体数据片段，而每个数据片段则由 **AVAssetTrackSegment** 类进行描述。
+
+AVAssetTrackSegment 有两个属性
+
+* timeMapping 描述的是数据片段在整个媒体文件中所处的时间范围
+
+	```
+	timeMapping 是一个结构体，拥有两个成员，对于编辑中的媒体数据片段，它们分别表示数据在源文件中的位置和目标文件中的位置
+	typedef struct 
+	{
+		CMTimeRange source; 
+		CMTimeRange target; 
+	} CMTimeMapping;
+	```
+* empty 描述该数据片段是否为空，如果为空，其 timeMapping.source.start 为 **kCMTimeInvalid**
+
+### AVCompositionTrackSegment
+在编辑媒体文件时，在描述数据时，使用的是 AVAssetTrackSegment 的子类 **AVCompositionTrackSegment** ，她的主要属性和方法如下：
+
+```
+//判断数据片段是否为空，若为空 timeMapping.target 可为有效值，其他为未定义值
+@property (nonatomic, readonly, getter=isEmpty) BOOL empty;
+
+//片段数据所处的文件的地址
+@property (nonatomic, readonly, nullable) NSURL *sourceURL;
+
+//片段数据所处文件的描述 asset track 的 ID
+@property (nonatomic, readonly) CMPersistentTrackID sourceTrackID;
+
+//创建对象，提供了数据片段所在的文件、文件的描述 asset track 的 ID 、源文件中的数据时间范围、目标文件中所处的时间范围
+//sourceTimeRange 与 targetTimeRange 的时间长度如果不一致，那么播放的速率会改变
++ (instancetype)compositionTrackSegmentWithURL:(NSURL *)URL trackID:(CMPersistentTrackID)trackID sourceTimeRange:(CMTimeRange)sourceTimeRange targetTimeRange:(CMTimeRange)targetTimeRange;
+- (instancetype)initWithURL:(NSURL *)URL trackID:(CMPersistentTrackID)trackID sourceTimeRange:(CMTimeRange)sourceTimeRange targetTimeRange:(CMTimeRange)targetTimeRange NS_DESIGNATED_INITIALIZER;
+
+//创建仅有时间范围而无实际媒体数据的实例
++ (instancetype)compositionTrackSegmentWithTimeRange:(CMTimeRange)timeRange;
+- (instancetype)initWithTimeRange:(CMTimeRange)timeRange NS_DESIGNATED_INITIALIZER; 
+```
+
+## 音频的自定义播放
+要在媒体资源播放的过程中实现音频的自定义播放，需要用 **AVMutableAudioMix** 对不同的音频进行编辑。这个类的实例对象的属性 **inputParameters** 是音量描述对象的集合，每个对象都是对一个 audio track 的音量变化的描述。
+
+```
+AVMutableAudioMix *mutableAudioMix = [AVMutableAudioMix audioMix];
+
+AVMutableAudioMixInputParameters *mixParameters1 = [AVMutableAudioMixInputParameters audioMixInputParametersWithTrack:compositionAudioTrack1];
+[mixParameters1 setVolumeRampFromStartVolume:1.f toEndVolume:0.f timeRange:CMTimeRangeMake(kCMTimeZero, mutableComposition.duration/2)];
+[mixParameters1 setVolumeRampFromStartVolume:0.f toEndVolume:1.f timeRange:CMTimeRangeMake(mutableComposition.duration/2, mutableComposition.duration)];
+
+AVMutableAudioMixInputParameters *mixParameters2 = [AVMutableAudioMixInputParameters audioMixInputParametersWithTrack:compositionAudioTrack2];
+[mixParameters2 setVolumeRampFromStartVolume:1.f toEndVolume:0.f timeRange:CMTimeRangeMake(kCMTimeZero, mutableComposition.duration)];
+
+mutableAudioMix.inputParameters = @[mixParameters1, mixParameters2];
+```
+
+### AVAudioMix
+该类中有一个属性 **inputParameters** ，它是 **AVAudioMixInputParameters** 实例对象的集合，每个实例都是对音频播放方式的描述。可见，AVAudioMix 并不直接改变音频播放的方式，其只是存储了音频播放的方式。
+
+### AVMutableAudioMix
+AVMutableAudioMix 是 AVAudioMix 的子类，它的方法 **audioMix** 返回一个 inputParameters 属性为空的实例。
+
+### AVAudioMixInputParameters
+这个类是音量变化的描述类，它同一个音频的 track 相关联，并设置音量随时间变化的算法，其获取音量变化的方法如下：
+
+```
+//获取的音量变化范围 timeRange 应包含指定的时刻 time 否则最终返回 NO
+//startVolume 是音量开始变化时的初始音量
+//endVolume 是音量变化结束时的音量
+//timeRang 是实际音量变化的范围，它应该包含指定的 time
+- (BOOL)getVolumeRampForTime:(CMTime)time startVolume:(nullable float *)startVolume endVolume:(nullable float *)endVolume timeRange:(nullable CMTimeRange *)timeRange;
+```
+
+### AVMutableAudioMixInputParameters
+AVMutableAudioMixInputParameters 是 AVAudioMixInputParameters 的子类，它提供了直接设置某个时刻或时间段的音量的方法。
+
+```
+//根据提供的 track 创建一个实例，此时的音量描述数据为空
++ (instancetype)audioMixInputParametersWithTrack:(nullable AVAssetTrack *)track;
+
+//创建一个实例，此时的音量变化描述是空的，且 trackID 为 kCMPersistentTrackID_Invalid
++ (instancetype)audioMixInputParameters;
+
+//设置某个时间范围内的初始音量及结束音量
+- (void)setVolumeRampFromStartVolume:(float)startVolume toEndVolume:(float)endVolume timeRange:(CMTimeRange)timeRange;
+
+//设置某个时刻的音量
+- (void)setVolume:(float)volume atTime:(CMTime)time;
+```
+
+## 视频的自定义播放
+同音频的自定义播放一样，要实现视频的自定义播放，仅仅将视频资源集合到一起是不够的，需要使用 **AVMutableVideoComposition** 类来定义不同的的视频资源在不同的时间范围的播放方式。
+
+### AVVideoComposition
+AVVideoComposition 是 AVMutableVideoComposition 的父类，它的主要属性和方法如下：
+
+```
+//该类的构造类，提供自定义的构造类时，提供的类要遵守 AVVideoCompositing 协议
+@property (nonatomic, readonly, nullable) Class<AVVideoCompositing> customVideoCompositorClass NS_AVAILABLE(10_9, 7_0);
+
+//视频每一帧的刷新时间
+@property (nonatomic, readonly) CMTime frameDuration;
+
+//视频显示时的大小范围
+@property (nonatomic, readonly) CGSize renderSize;
+
+//视频显示范围大小的缩放比例（仅仅对 iOS 有效）
+@property (nonatomic, readonly) float renderScale;
+
+//视频集合中的具体视频的集合，其是遵循 AVVideoCompositionInstruction 协议的类实例对象
+//这些视频构成一个完整的时间线，不能重叠，不能间断，并且在数组中的顺序及为视频的播放顺序
+@property (nonatomic, readonly, copy) NSArray<id <AVVideoCompositionInstruction>> *instructions;
+
+//用于 Core Animation 的工具对象，可以为 nil 
+@property (nonatomic, readonly, retain, nullable) AVVideoCompositionCoreAnimationTool *animationTool;
+
+//直接使用一个 asset 创建一个实例，创建的实例的各个属性会根据 asset 中的所有的 video tracks 的属性进行计算并适配，所以在调用该方法之前，确保 asset 中的属性已经加载
+//返回的实例对象的属性 instructions 中的对象会对应每个 asset 中的 track 中属性要求
+//返回的实例对象的属性 frameDuration 的值是 asset 中 所有 track 的 nominalFrameRate 属性值最大的，如果这些值都为 0 ，默认为 30fps
+//返回的实例对象的属性 renderSize 的值是 asset 的 naturalSize 属性值，如果 asset 是 AVComposition 类的实例，否则，renderSize 的值将包含每个 track 的
++ (AVVideoComposition *)videoCompositionWithPropertiesOfAsset:(AVAsset *)asset NS_AVAILABLE(10_9, 6_0);
+
+//这三个属性设置了渲染帧时的颜色空间、矩阵、颜色转换函数，可能的值都在 AVVideoSetting.h 文件中定义
+@property (nonatomic, readonly, nullable) NSString *colorPrimaries NS_AVAILABLE(10_12, 10_0);
+@property (nonatomic, readonly, nullable) NSString *colorYCbCrMatrix NS_AVAILABLE(10_12, 10_0);
+@property (nonatomic, readonly, nullable) NSString *colorTransferFunction NS_AVAILABLE(10_12, 10_0);
+
+//该方法返回一个实例，它指定的 block 会对 asset 中每一个有效的 track 的每一帧进行渲染得到 CIImage 实例对象
+//在 block 中进行每一帧的渲染，成功后应调用 request 的方法 finishWithImage:context: 并将得到的 CIImage 对象作为参数
+//若是渲染失败，则应调用 finishWithError: 方法并传递错误信息
+
++ (AVVideoComposition *)videoCompositionWithAsset:(AVAsset *)asset
+			 applyingCIFiltersWithHandler:(void (^)(AVAsynchronousCIImageFilteringRequest *request))applier NS_AVAILABLE(10_11, 9_0);
+```
+
+### AVMutableVideoComposition
+AVMutableVideoComposition 是 AVVideoComposition 的可变子类，相较于父类，它多了下面的创建方法。
+
+```
+//这个方法创建的实例对象的属性的值都是 nil 或 0，但是它的属性都是可以进行修改的
++ (AVMutableVideoComposition *)videoComposition;
+```
+
+### AVVideoCompositionInstruction
+在上述的两个类中，真正包含有视频播放方式信息的是 instructions 属性，这个集合中的对象都遵循 AVVideoCompositionInstruction 协议，若不使用自定义的类，那么可以使用 AVFoundation 框架中的 **AVVideoCompositionInstruction** 类。
+
+该类的相关属性如下：
+
+```
+//表示该 instruction 生效的时间范围
+@property (nonatomic, readonly) CMTimeRange timeRange;
+
+//指定当前时间段的 composition 的背景色
+//如果没有指定，那么使用默认的黑色
+//如果渲染的像素没有透明度通道，那么这个颜色也会忽略透明度
+@property (nonatomic, readonly, retain, nullable) __attribute__((NSObject)) CGColorRef backgroundColor;
+
+//AVVideoCompositionLayerInstruction 类实例对象的集合，描述各个视频资源帧的层级及组合关系
+//按这个数组的顺序，第一个显示在第一层，第二个在第一层下面显示，以此类推
+@property (nonatomic, readonly, copy) NSArray<AVVideoCompositionLayerInstruction *> *layerInstructions;
+
+/* If NO, indicates that post-processing should be skipped for the duration of this instruction.  YES by default.
+   See +[AVVideoCompositionCoreAnimationTool videoCompositionToolWithPostProcessingAsVideoLayer:inLayer:].*/
+//表明是否能够将该时间段的视频进行后推，若为 NO，表示需要将视频时间后推时，应跳过该时间段，为 YES 则按默认操作处理
+@property (nonatomic, readonly) BOOL enablePostProcessing;
+
+/* List of video track IDs required to compose frames for this instruction. The value of this property is computed from the layer instructions. */
+//当前 instruction 中需要进行帧组合的所有的 track ID 的集合，由属性 layerInstructions 计算得到
+@property (nonatomic, readonly) NSArray<NSValue *> *requiredSourceTrackIDs NS_AVAILABLE(10_9, 7_0);
+
+//如果当前的 instruction 在该时间段内的视频帧组合后，实质得到的是某个源视频的帧，那么就返回这个视频资源的 ID
+@property (nonatomic, readonly) CMPersistentTrackID passthroughTrackID NS_AVAILABLE(10_9, 7_0); 
+```
+
+### AVMutableVideoCompositionInstruction
+AVMutableVideoCompositionInstruction 是 AVVideoCompositionInstruction 的子类，其继承的父类的属性可进行修改，并且提供了创建属性值为 nil 或无效的方法。
+
+```
++ (instancetype)videoCompositionInstruction;
+```
