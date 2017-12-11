@@ -433,8 +433,8 @@ AVMutableAudioMix 是 AVAudioMix 的子类，它的方法 **audioMix** 返回一
 
 ```
 //获取的音量变化范围 timeRange 应包含指定的时刻 time 否则最终返回 NO
-//startVolume 是音量开始变化时的初始音量
-//endVolume 是音量变化结束时的音量
+//startVolume 获取音量开始变化时的初始音量
+//endVolume 获取音量变化结束时的音量
 //timeRang 是实际音量变化的范围，它应该包含指定的 time
 - (BOOL)getVolumeRampForTime:(CMTime)time startVolume:(nullable float *)startVolume endVolume:(nullable float *)endVolume timeRange:(nullable CMTimeRange *)timeRange;
 ```
@@ -527,12 +527,9 @@ AVMutableVideoComposition 是 AVVideoComposition 的可变子类，相较于父�
 //按这个数组的顺序，第一个显示在第一层，第二个在第一层下面显示，以此类推
 @property (nonatomic, readonly, copy) NSArray<AVVideoCompositionLayerInstruction *> *layerInstructions;
 
-/* If NO, indicates that post-processing should be skipped for the duration of this instruction.  YES by default.
-   See +[AVVideoCompositionCoreAnimationTool videoCompositionToolWithPostProcessingAsVideoLayer:inLayer:].*/
 //表明是否能够将该时间段的视频进行后推，若为 NO，表示需要将视频时间后推时，应跳过该时间段，为 YES 则按默认操作处理
 @property (nonatomic, readonly) BOOL enablePostProcessing;
 
-/* List of video track IDs required to compose frames for this instruction. The value of this property is computed from the layer instructions. */
 //当前 instruction 中需要进行帧组合的所有的 track ID 的集合，由属性 layerInstructions 计算得到
 @property (nonatomic, readonly) NSArray<NSValue *> *requiredSourceTrackIDs NS_AVAILABLE(10_9, 7_0);
 
@@ -541,8 +538,84 @@ AVMutableVideoComposition 是 AVVideoComposition 的可变子类，相较于父�
 ```
 
 ### AVMutableVideoCompositionInstruction
-AVMutableVideoCompositionInstruction 是 AVVideoCompositionInstruction 的子类，其继承的父类的属性可进行修改，并且提供了创建属性值为 nil 或无效的方法。
+AVMutableVideoCompositionInstruction 是 AVVideoCompositionInstruction 的子类，其继承的父类的属性可进行修改，并且提供了创建属性值为 nil 或无效的实例的方法。
 
 ```
 + (instancetype)videoCompositionInstruction;
 ```
+
+### AVVideoCompositionLayerInstruction
+AVVideoCompositionLayerInstruction 是对给定的视频资源进行描述的类，通过下面的方法，可以获取仿射变化、透明度变化、裁剪区域变化的梯度信息。
+
+```
+//获取包含指定时间的仿射变化梯度信息
+//startTransform、endTransform 用来接收变化过程的起始值与结束值
+//timeRange 用来接收变化的持续时间范围
+//返回值表示指定的时间 time 是否在变化时间 timeRange 内
+- (BOOL)getTransformRampForTime:(CMTime)time startTransform:(nullable CGAffineTransform *)startTransform endTransform:(nullable CGAffineTransform *)endTransform timeRange:(nullable CMTimeRange *)timeRange;
+
+//获取包含指定时间的透明度变化梯度信息
+//startOpacity、endOpacity 用来接收透明度变化过程的起始值与结束值
+//timeRange 用来接收变化的持续时间范围
+//返回值表示指定的时间 time 是否在变化时间 timeRange 内
+- (BOOL)getOpacityRampForTime:(CMTime)time startOpacity:(nullable float *)startOpacity endOpacity:(nullable float *)endOpacity timeRange:(nullable CMTimeRange *)timeRange;
+
+//获取包含指定时间的裁剪区域的变化梯度信息
+//startCropRectangle、endCropRectangle 用来接收变化过程的起始值与结束值
+//timeRange 用来接收变化的持续时间范围
+//返回值表示指定的时间 time 是否在变化时间 timeRange 内
+- (BOOL)getCropRectangleRampForTime:(CMTime)time startCropRectangle:(nullable CGRect *)startCropRectangle endCropRectangle:(nullable CGRect *)endCropRectangle timeRange:(nullable CMTimeRange *)timeRange NS_AVAILABLE(10_9, 7_0);
+```
+
+### AVMutableVideoCompositionLayerInstruction
+AVMutableVideoCompositionLayerInstruction 是 AVVideoCompositionLayerInstruction 的子类，它可以改变 composition 中的 track 资源播放时的仿射变化、裁剪区域、透明度等信息。
+
+相比于父类，该子类还提供了创建实例的方法：
+
+```
+//这两个方法的区别在于，前者返回的实例对象的属性 trackID 的值是 track 的 trackID 值
+//而第二个方法的返回的实例对象的属性 trackID 的值为 kCMPersistentTrackID_Invalid
++ (instancetype)videoCompositionLayerInstructionWithAssetTrack:(AVAssetTrack *)track;
++ (instancetype)videoCompositionLayerInstruction;
+```
+该类的属性表示 instruction 所作用的 track 的 ID
+
+```
+@property (nonatomic, assign) CMPersistentTrackID trackID;
+```
+设置了 trackID 后，通过下面的方法，进行剃度信息的设置：
+
+```
+//设置视频中帧的仿射变化信息
+//指定了变化的时间范围、起始值和结束值，其中坐标系的原点为左上角，向下向右为正方向
+- (void)setTransformRampFromStartTransform:(CGAffineTransform)startTransform toEndTransform:(CGAffineTransform)endTransform timeRange:(CMTimeRange)timeRange;
+
+//设置 instruction 的 timeRange 范围内指定时间的仿射变换，该值会一直保持，直到被再次设置
+- (void)setTransform:(CGAffineTransform)transform atTime:(CMTime)time;
+
+//设置透明度的梯度信息，提供的透明度初始值和结束值应在0～1之间
+//变化的过程是线形的
+- (void)setOpacityRampFromStartOpacity:(float)startOpacity toEndOpacity:(float)endOpacity timeRange:(CMTimeRange)timeRange;
+
+//设置指定时间的透明度，该透明度会一直持续到下一个值被设置
+- (void)setOpacity:(float)opacity atTime:(CMTime)time;
+
+//设置裁剪矩形的变化信息
+- (void)setCropRectangleRampFromStartCropRectangle:(CGRect)startCropRectangle toEndCropRectangle:(CGRect)endCropRectangle timeRange:(CMTimeRange)timeRange NS_AVAILABLE(10_9, 7_0);
+
+//设置指定时间的裁剪矩形
+- (void)setCropRectangle:(CGRect)cropRectangle atTime:(CMTime)time NS_AVAILABLE(10_9, 7_0);
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
