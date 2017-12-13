@@ -479,7 +479,7 @@ AVVideoComposition 是 AVMutableVideoComposition 的父类，它的主要属性�
 //这些视频构成一个完整的时间线，不能重叠，不能间断，并且在数组中的顺序及为视频的播放顺序
 @property (nonatomic, readonly, copy) NSArray<id <AVVideoCompositionInstruction>> *instructions;
 
-//用于 Core Animation 的工具对象，可以为 nil 
+//用于组合视频帧与动态图层的 Core Animation 的工具对象，可以为 nil 
 @property (nonatomic, readonly, retain, nullable) AVVideoCompositionCoreAnimationTool *animationTool;
 
 //直接使用一个 asset 创建一个实例，创建的实例的各个属性会根据 asset 中的所有的 video tracks 的属性进行计算并适配，所以在调用该方法之前，确保 asset 中的属性已经加载
@@ -502,7 +502,7 @@ AVVideoComposition 是 AVMutableVideoComposition 的父类，它的主要属性�
 ```
 
 ### AVMutableVideoComposition
-AVMutableVideoComposition 是 AVVideoComposition 的可变子类，相较于父类，它多了下面的创建方法。
+AVMutableVideoComposition 是 AVVideoComposition 的可变子类，它继承父类的属性可以改变，并且新增了下面的创建方法。
 
 ```
 //这个方法创建的实例对象的属性的值都是 nil 或 0，但是它的属性都是可以进行修改的
@@ -527,7 +527,9 @@ AVMutableVideoComposition 是 AVVideoComposition 的可变子类，相较于父�
 //按这个数组的顺序，第一个显示在第一层，第二个在第一层下面显示，以此类推
 @property (nonatomic, readonly, copy) NSArray<AVVideoCompositionLayerInstruction *> *layerInstructions;
 
-//表明是否能够将该时间段的视频进行后推，若为 NO，表示需要将视频时间后推时，应跳过该时间段，为 YES 则按默认操作处理
+//表明该时间段的视频帧是否需要后期处理
+//若为 NO，后期图层的处理将跳过该时间段，这样能够提高效率
+//为 YES 则按默认操作处理（参考 AVVideoCompositionCoreAnimationTool 类）
 @property (nonatomic, readonly) BOOL enablePostProcessing;
 
 //当前 instruction 中需要进行帧组合的所有的 track ID 的集合，由属性 layerInstructions 计算得到
@@ -607,11 +609,76 @@ AVMutableVideoCompositionLayerInstruction 是 AVVideoCompositionLayerInstruction
 - (void)setCropRectangle:(CGRect)cropRectangle atTime:(CMTime)time NS_AVAILABLE(10_9, 7_0);
 ```
 
+### AVVideoCompositionCoreAnimationTool
+在自定义视频播放时，可能需要添加水印、标题或者其他的动画效果，需要使用该类。该类通常用来协调离线视频中图层与动画图层的组合（如使用 AVAssetExportSession 和 AVAssetReader 导出视频文件或读取视频文件时），而若是在线实时的视频播放，应使用 AVSynchronizedLayer 类来同步视频的播放与动画的效果。
 
+在使用该类时，注意动画在整个视频的时间线上均可以被修改，所以，动画的开始时间应该设置为 **AVCoreAnimationBeginTimeAtZero** ，这个值其实比 0 大，属性值 **removedOnCompletion** 应该置为 NO，以防当动画执行结束后被移除，并且不应使用与任何的 UIView 相关联的图层。
 
+作为视频组合的后期处理工具类，主要方法如下：
 
+```
+//向视频组合中添加一个动画图层，这个图层不能在任何图层树中
+//提供的参数 trackID 应由方法 [AVAsset unusedTrackID] 得到，它不与任何视频资源的 trackID 相关
+//AVVideoCompositionInstruction 的属性 layerInstructions 包含的 AVVideoCompositionLayerInstruction 实例对象中应该有
+//该 trackID 一致的 AVVideoCompositionLayerInstruction 实例对象，并且为性能考虑，不应使用该对象设置 transform 的变化
+//在 iOS 中，CALayer 作为 UIView 的背景图层，其内容的是否能够翻转，由方法 contentsAreFlipped 决定（如果所有的图层包括子图层，该方法返回的值为 YES 的个数为奇数个，表示可以图层中内容可以垂直翻转）
+//所以这里的 layer 若用来设置 UIView 的 layer 属性，或作为其中的子图层，其属性值 geometryFlipped 应设置为 YES ，这样则能够保持是否能够翻转的结果一致
++ (instancetype)videoCompositionCoreAnimationToolWithAdditionalLayer:(CALayer *)layer asTrackID:(CMPersistentTrackID)trackID;
 
+//将放在图层 videoLayer 中的组合视频帧同动画图层 animationLayer 中的内容一起进行渲染，得到最终的视频帧
+//通常，videoLayer 是 animationLayer 的子图层，而 animationLayer 则不在任何图层树中
++ (instancetype)videoCompositionCoreAnimationToolWithPostProcessingAsVideoLayer:(CALayer *)videoLayer inLayer:(CALayer *)animationLayer;
 
+//复制 videoLayers 中的每一个图层，与 animationLayer一起渲染得到最中的帧
+////通常，videoLayers 中的图层都在 animationLayer 的图层树中，而 animationLayer 则不属于任何图层树
++ (instancetype)videoCompositionCoreAnimationToolWithPostProcessingAsVideoLayers:(NSArray<CALayer *> *)videoLayers inLayer:(CALayer *)animationLayer NS_AVAILABLE(10_9, 7_0);
+```
+
+### AVVideoCompositionValidationHandling
+当我们经过编辑后得到一个视频资源 asset ，并且为该资源设置了自定义播放信息 video composition ，需要验证对于这个 asset 而言，video composition 是否有效，可以调用 AVVideoComposition 的校验方法。
+
+```
+/*
+@param asset 
+设置第一个参数的校验内容，设置 nil 忽略这些校验
+1. 该方法可以校验 AVVideoComposition 的属性 instructions 是否符合要求
+2. 校验 instructions 中的每个 AVVideoCompositionInstruction 对象的 layerInstructions 属性中的
+每一个 AVVideoCompositionLayerInstruction 对象 trackID 值是否对应 asset 中 track 的 ID 
+或 AVVideoComposition 的 animationTool 实例
+3. 校验时间 asset 的时长是否与 instructions 中的时间范围相悖
+
+@param timeRange 
+设置第二个参数的校验内容
+1. 校验 instructions 的所有的时间范围是否在提供的 timeRange 的范围内，
+若要忽略该校验，可以传参数 CMTimeRangeMake(kCMTimeZero, kCMTimePositiveInfinity)
+
+@param validationDelegate 
+设置遵循 AVVideoCompositionValidationHandling 协议的代理类，用来处理校验过程中的报错，可以为 nil 
+*/
+- (BOOL)isValidForAsset:(nullable AVAsset *)asset timeRange:(CMTimeRange)timeRange validationDelegate:(nullable id<AVVideoCompositionValidationHandling>)validationDelegate NS_AVAILABLE(10_8, 5_0);
+```
+设置的代理对象要遵循协议 **AVVideoCompositionValidationHandling** ，该对象在实现下面的协议方法时，若修改了传递的 composition 参数，上面的校验方法则会抛出异常。
+
+该协议提供了以下回调方法，所有方法的返回值用来确定是否继续进行校验以获取更多的错误。
+
+```
+//报告 videoComposition 中有无效的值
+- (BOOL)videoComposition:(AVVideoComposition *)videoComposition shouldContinueValidatingAfterFindingInvalidValueForKey:(NSString *)key NS_AVAILABLE(10_8, 5_0);
+
+//报告 videoComposition 中有时间段没有相对应的 instruction
+- (BOOL)videoComposition:(AVVideoComposition *)videoComposition shouldContinueValidatingAfterFindingEmptyTimeRange:(CMTimeRange)timeRange NS_AVAILABLE(10_8, 5_0);
+
+//报告 videoComposition 中的 instructions 中 timeRange 无效的实例对象
+//可能是 timeRange 本身为 CMTIMERANGE_IS_INVALID 
+//或者是该时间段同上一个的 instruction 的 timeRange 重叠
+//也可能是其开始时间比上一个的 instruction 的 timeRange 的开始时间要早
+- (BOOL)videoComposition:(AVVideoComposition *)videoComposition shouldContinueValidatingAfterFindingInvalidTimeRangeInInstruction:(id<AVVideoCompositionInstruction>)videoCompositionInstruction NS_AVAILABLE(10_8, 5_0);
+
+//报告 videoComposition 中的 layer instruction 同调用校验方法时指定的 asset 中 track 的 trackID 不一致
+//也不与 composition 使用的 animationTool 的trackID 一致
+- (BOOL)videoComposition:(AVVideoComposition *)videoComposition shouldContinueValidatingAfterFindingInvalidTrackIDInInstruction:(id<AVVideoCompositionInstruction>)videoCompositionInstruction layerInstruction:(AVVideoCompositionLayerInstruction *)layerInstruction asset:(AVAsset *)asset NS_AVAILABLE(10_8, 5_0);
+
+```
 
 
 
