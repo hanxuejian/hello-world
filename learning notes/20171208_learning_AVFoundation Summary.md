@@ -680,6 +680,583 @@ AVMutableVideoCompositionLayerInstruction 是 AVVideoCompositionLayerInstruction
 
 ```
 
+### 例程
+下面的例子给出了将两个视频资源和一个音频资源编辑组合为一个资源文件的步骤。
+
+1. 要组合多个视听资源，需要先创建一个 **AVMutableComposition** 实例对象，用来组合资源。
+2. 然后向 composition 中添加 **AVMutableCompositionTrack** 实例对象，为性能考虑，对于非同时播放且相同类型的资源，应使用一个 AVMutableCompositionTrack 实例对象，所以这里添加一个视频类型的 composition track 和一个音频类型的 composition track 即可。
+
+	```
+	AVMutableComposition *mutableComposition = [AVMutableComposition composition];
+	
+	AVMutableCompositionTrack *videoCompositionTrack = [mutableComposition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
+	
+	AVMutableCompositionTrack *audioCompositionTrack = [mutableComposition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
+	```
+	
+3. 获得了拥有 composition track 的 composition 后，下一步就是将具体的视听资源添加到组合中。
+
+	```
+	AVURLAsset *firstVideoAsset = [AVURLAsset URLAssetWithURL:firstVideoUrl options:nil];
+	AVURLAsset *secondVideoAsset = [AVURLAsset URLAssetWithURL:secondVideoUrl options:nil];
+	AVURLAsset *audioAsset = [AVURLAsset URLAssetWithURL:audioUrl options:nil];
+	
+	//获取视听资源中的第一个 asset track
+	AVAssetTrack *firstVideoAssetTrack = [[firstVideoAsset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0];
+	AVAssetTrack *secondVideoAssetTrack = [[secondVideoAsset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0];
+	AVAssetTrack *audioAssetTrack = [[audioAsset tracksWithMediaType:AVMediaTypeAudio] objectAtIndex:0];
+	
+	//第一个视频插入的时间点是 kCMTimeZero
+	[videoCompositionTrack insertTimeRange:CMTimeRangeMake(kCMTimeZero, firstVideoAssetTrack.timeRange.duration) ofTrack:firstVideoAssetTrack atTime:kCMTimeZero error:nil];
+	
+	//第二个视频插入的时间点是第一个视频结束的时间
+	[videoCompositionTrack insertTimeRange:CMTimeRangeMake(kCMTimeZero, secondVideoAssetTrack.timeRange.duration) ofTrack:secondVideoAssetTrack atTime:firstVideoAssetTrack.timeRange.duration error:nil];
+	
+	//音频的持续时间是两个视频时间的总和
+	CMTime videoTotalDuration = CMTimeAdd(firstVideoAssetTrack.timeRange.duration, secondVideoAssetTrack.timeRange.duration);
+	[audioCompositionTrack insertTimeRange:CMTimeRangeMake(kCMTimeZero, videoTotalDuration) ofTrack: atTime:kCMTimeZero error:nil];
+	
+	```
+	
+4. 检查视频的镜头是否是横向模式，组合时，video track 总是被认为是横向模式，如果待组合的 video track 是纵向模式，那么最终的视频显示将不符合预想，而且无法将横向模式和纵向模式的的视频组合到一起。
+	
+	```
+	//判断第一个视频的模式
+	BOOL isFirstVideoPortrait = NO;
+	CGAffineTransform firstTransform = firstVideoAssetTrack.preferredTransform;
+	if (firstTransform.a == 0 && firstTransform.d == 0 && (firstTransform.b == 1.0 || firstTransform.b == -1.0) && (firstTransform.c == 1.0 || firstTransform.c == -1.0)) {
+	    isFirstVideoPortrait = YES;
+	}
+	
+	//判断第二个视频的模式
+	BOOL isSecondVideoPortrait = NO;
+	CGAffineTransform secondTransform = secondVideoAssetTrack.preferredTransform;
+	if (secondTransform.a == 0 && secondTransform.d == 0 && (secondTransform.b == 1.0 || secondTransform.b == -1.0) && (secondTransform.c == 1.0 || secondTransform.c == -1.0)) {
+	    isSecondVideoPortrait = YES;
+	}
+	
+	//判断两个视频的模式是否一致
+	if ((isFirstVideoAssetPortrait && !isSecondVideoAssetPortrait) || (!isFirstVideoAssetPortrait && isSecondVideoAssetPortrait)) {
+	    UIAlertView *incompatibleVideoOrientationAlert = [[UIAlertView alloc] initWithTitle:@"Error!" message:@"Cannot combine a video shot in portrait mode with a video shot in landscape mode." delegate:self cancelButtonTitle:@"Dismiss" otherButtonTitles:nil];
+	    [incompatibleVideoOrientationAlert show];
+	    return;
+	}
+	```
+	
+5. 当每个视频的方向是兼容的，那么可以对每个视频的图层进行必要的调整。
+	
+	```
+	AVMutableVideoCompositionInstruction *firstVideoCompositionInstruction = [AVMutableVideoCompositionInstruction videoCompositionInstruction];
+	firstVideoCompositionInstruction.timeRange = CMTimeRangeMake(kCMTimeZero, firstVideoAssetTrack.timeRange.duration);
+	
+	AVMutableVideoCompositionInstruction * secondVideoCompositionInstruction = [AVMutableVideoCompositionInstruction videoCompositionInstruction];
+	secondVideoCompositionInstruction.timeRange = CMTimeRangeMake(firstVideoAssetTrack.timeRange.duration, secondVideoAssetTrack.timeRange.duration);
+	
+	AVMutableVideoCompositionLayerInstruction *firstVideoLayerInstruction = [AVMutableVideoCompositionLayerInstruction videoCompositionLayerInstructionWithAssetTrack:videoCompositionTrack];
+	[firstVideoLayerInstruction setTransform:firstTransform atTime:kCMTimeZero];
+	
+	AVMutableVideoCompositionLayerInstruction *secondVideoLayerInstruction = [AVMutableVideoCompositionLayerInstruction videoCompositionLayerInstructionWithAssetTrack:videoCompositionTrack];
+	[secondVideoLayerInstruction setTransform:secondTransform atTime:firstVideoAssetTrack.timeRange.duration];
+	
+	firstVideoCompositionInstruction.layerInstructions = @[firstVideoLayerInstruction];
+	secondVideoCompositionInstruction.layerInstructions = @[secondVideoLayerInstruction];
+	
+	AVMutableVideoComposition *mutableVideoComposition = [AVMutableVideoComposition videoComposition];
+	mutableVideoComposition.instructions = @[firstVideoCompositionInstruction, secondVideoCompositionInstruction];
+	```
+	
+6. 检查视频方向的兼容性之后，需要调整视频组合渲染区域的大小，设置视频帧的刷新频率，以兼容每一个视频的播放。
+
+	```
+	//获取视频的原播放区域
+	CGSize naturalSizeFirst, naturalSizeSecond;
+	if (isFirstVideoAssetPortrait) {
+	    naturalSizeFirst = CGSizeMake(firstVideoAssetTrack.naturalSize.height, firstVideoAssetTrack.naturalSize.width);
+	    naturalSizeSecond = CGSizeMake(secondVideoAssetTrack.naturalSize.height, secondVideoAssetTrack.naturalSize.width);
+	} else {
+	    naturalSizeFirst = firstVideoAssetTrack.naturalSize;
+	    naturalSizeSecond = secondVideoAssetTrack.naturalSize;
+	}
+	
+	//设置的渲染区域要能包含两个视频的播放区域
+	float renderWidth, renderHeight;
+	if (naturalSizeFirst.width > naturalSizeSecond.width) {
+	    renderWidth = naturalSizeFirst.width;
+	} else {
+	    renderWidth = naturalSizeSecond.width;
+	}
+	if (naturalSizeFirst.height > naturalSizeSecond.height) {
+	    renderHeight = naturalSizeFirst.height;
+	} else {
+	    renderHeight = naturalSizeSecond.height;
+	}
+	mutableVideoComposition.renderSize = CGSizeMake(renderWidth, renderHeight);
+	
+	//设置帧每一秒刷新30次
+	mutableVideoComposition.frameDuration = CMTimeMake(1,30);
+	```
+
+7. 最后将组合的视听资源导出到一个单独的文件中并保存到资源库。
+
+	```
+	static NSDateFormatter *kDateFormatter;
+	if (!kDateFormatter) {
+	    kDateFormatter = [[NSDateFormatter alloc] init];
+	    kDateFormatter.dateStyle = NSDateFormatterMediumStyle;
+	    kDateFormatter.timeStyle = NSDateFormatterShortStyle;
+	}
+	
+	AVAssetExportSession *exporter = [[AVAssetExportSession alloc] initWithAsset:mutableComposition presetName:AVAssetExportPresetHighestQuality];
+	
+	exporter.outputURL = [[[[NSFileManager defaultManager] URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:@YES error:nil] URLByAppendingPathComponent:[kDateFormatter stringFromDate:[NSDate date]]] URLByAppendingPathExtension:CFBridgingRelease(UTTypeCopyPreferredTagWithClass((CFStringRef)AVFileTypeQuickTimeMovie, kUTTagClassFilenameExtension))];
+	
+	exporter.outputFileType = AVFileTypeQuickTimeMovie;
+	exporter.shouldOptimizeForNetworkUse = YES;
+	exporter.videoComposition = mutableVideoComposition;
+	
+	//异步导出
+	[exporter exportAsynchronouslyWithCompletionHandler:^{
+	    dispatch_async(dispatch_get_main_queue(), ^{
+	        if (exporter.status == AVAssetExportSessionStatusCompleted) {
+		         //保存文件到媒体库
+	            ALAssetsLibrary *assetsLibrary = [[ALAssetsLibrary alloc] init];            
+	            if ([assetsLibrary videoAtPathIsCompatibleWithSavedPhotosAlbum:exporter.outputURL]) {
+	                [assetsLibrary writeVideoAtPathToSavedPhotosAlbum:exporter.outputURL completionBlock:NULL];
+	            }
+	        }
+	    });
+	}];
+	```
+
+## 媒体资源捕获
+通过麦克风、摄像机等设备，可以捕获外界的声音和影像。要处理设备捕获的数据，需要使用 **AVCaptureDevice** 类描述设备，使用 **AVCaptureInput** 配置数据从设备的输入，使用 **AVCaptureOutput** 类管理数据到文件的写入，而数据的输入到写出，需要使用 **AVCaptureSession** 类进行协调。此外，可以使用 **AVCaptureVideoPreviewLayer** 类显示相机正在记录的画面。
+
+一个设备可以有多个输入，使用 **AVCaptureInputPort** 类描述这些输入，用 **AVCaptureConnection** 类描述具体类型的输入与输出的关系，可以实现更精细的数据处理。
+
+### AVCaptureSession
+AVCaptureSession 是捕获视听数据的核心类，它协调数据的输入和输出。创建一个 AVCaptureSession 类的对象时，可以指定最终得到的视听数据的质量，当然这个质量与设备也有关系，通常在设置之前，可以调用方法判断 session 是否支持要设置的质量。
+
+AVCaptureSession 类实例可设置的数据质量有 AVCaptureSessionPresetHigh 、AVCaptureSessionPresetMedium 、AVCaptureSessionPresetLow 、AVCaptureSessionPreset320x240 等。在进行设置之前，可以调用 AVCaptureSession 中的方法进行校验。
+
+```
+- (BOOL)canSetSessionPreset:(NSString*)preset;
+```
+设置好对象后，可调用下面的方法，添加、移除输入、输出。
+
+```
+- (BOOL)canAddInput:(AVCaptureInput *)input;
+- (void)addInput:(AVCaptureInput *)input;
+- (void)removeInput:(AVCaptureInput *)input;
+
+- (BOOL)canAddOutput:(AVCaptureOutput *)output;
+- (void)addOutput:(AVCaptureOutput *)output;
+- (void)removeOutput:(AVCaptureOutput *)output;
+
+- (void)addInputWithNoConnections:(AVCaptureInput *)input NS_AVAILABLE(10_7, 8_0);
+- (void)addOutputWithNoConnections:(AVCaptureOutput *)output NS_AVAILABLE(10_7, 8_0);
+
+- (BOOL)canAddConnection:(AVCaptureConnection *)connection NS_AVAILABLE(10_7, 8_0);
+- (void)addConnection:(AVCaptureConnection *)connection NS_AVAILABLE(10_7, 8_0);
+- (void)removeConnection:(AVCaptureConnection *)connection NS_AVAILABLE(10_7, 8_0);
+```
+开始执行 session 或者结束执行，调用下面的方法。
+
+```
+- (void)startRunning;
+- (void)stopRunning;
+```
+
+对于正在执行中的 session ，要对其进行改变，所作出的改变，应放在下面两个方法之间。
+
+```
+- (void)beginConfiguration;
+- (void)commitConfiguration;
+```
+AVCaptureSession 开始执行、结束执行、执行过程中出错或被打断时，都会发出通知，通过注册下面的通知，可以获取我们感兴趣的信息。
+
+* AVCaptureSessionRuntimeErrorNotification 通过 AVCaptureSessionErrorKey 可以获取出错的原因
+* AVCaptureSessionDidStartRunningNotification 开始 session
+* AVCaptureSessionDidStopRunningNotification 结束 session
+* AVCaptureSessionWasInterruptedNotification 通过 AVCaptureSessionInterruptionReasonKey 可以获取被打断的原因
+* AVCaptureSessionInterruptionEndedNotification 打断结束，session 重新开始
+
+### AVCaptureDevice
+AVCaptureDevice 是用来描述设备属性的类，要捕获视听数据，需要获取相应的设备，使用该类获取有效的设备资源。这个设备资源列表是随时变动的，其在变动时，会发送 **AVCaptureDeviceWasConnectedNotification** 或 **AVCaptureDeviceWasDisconnectedNotification** 通知，以告知有设备连接或断开。
+
+在获取设备之前，要先确定要获取的设备的类型 **AVCaptureDeviceType** ，设备的位置 **AVCaptureDevicePosition** ，也可以通过要获取的媒体数据类型进行设备的选择。
+
+获取设备后，可以保存它的唯一标识、模型标识、名称等信息，以待下次用来获取设备。
+
+```
++ (NSArray *)devices;
++ (NSArray *)devicesWithMediaType:(NSString *)mediaType;
++ (AVCaptureDevice *)defaultDeviceWithMediaType:(NSString *)mediaType;
++ (AVCaptureDevice *)deviceWithUniqueID:(NSString *)deviceUniqueID;
+
+@property(nonatomic, readonly) NSString *uniqueID;
+@property(nonatomic, readonly) NSString *modelID;
+@property(nonatomic, readonly) NSString *localizedName;
+
+//校验获得的设备能否提供相应的媒体数据类型
+- (BOOL)hasMediaType:(NSString *)mediaType;
+
+//校验获得的设备能否支持相应的配置
+- (BOOL)supportsAVCaptureSessionPreset:(NSString *)preset;
+```
+获取一个设备后，可以通过修改它的属性来满足自己的需要。
+
+* flashMode 闪光灯的模式（AVCaptureFlashModeOff 、AVCaptureFlashModeOn 、AVCaptureFlashModeAuto）
+* torchMode 手电筒的模式（AVCaptureTorchModeOff 、AVCaptureTorchModeOn 、AVCaptureTorchModeAuto）
+* torchLevel 手电筒的亮度（0～1）
+* focusMode 聚焦模式（AVCaptureFocusModeLocked 、AVCaptureFocusModeAutoFocus 、AVCaptureFocusModeContinuousAutoFocus）
+* exposureMode 曝光模式（AVCaptureExposureModeLocked 、AVCaptureExposureModeAutoExpose 、AVCaptureExposureModeContinuousAutoExposure 、AVCaptureExposureModeCustom）
+* whiteBalanceMode 白平衡模式（AVCaptureWhiteBalanceModeLocked 、AVCaptureWhiteBalanceModeAutoWhiteBalance 、AVCaptureWhiteBalanceModeContinuousAutoWhiteBalance）
+
+在修改这些属性时，应先判断当前设备是否支持要设置的属性值，并且所有的属性修改都要放在下面两个方法之间，以保证属性能够被正确设置。
+
+```
+- (BOOL)lockForConfiguration:(NSError **)outError;
+- (void)unlockForConfiguration;
+```
+在调用硬件设备之前，应先判断应用是否拥有相应的权限，其权限分为以下几种：
+
+* AVAuthorizationStatusNotDetermined 未定义
+* AVAuthorizationStatusRestricted 无权限（因某些原因，系统拒绝权限）
+* AVAuthorizationStatusDenied 无权限（用户拒绝）
+* AVAuthorizationStatusAuthorized 有权限
+
+```
+//校验权限
++ (AVAuthorizationStatus)authorizationStatusForMediaType:(NSString *)mediaType NS_AVAILABLE_IOS(7_0);
+
+//请求权限，handler 处理会在任意线程中执行，所以需要在主线程中执行的处理由用户负责指定
++ (void)requestAccessForMediaType:(NSString *)mediaType completionHandler:(void (^)(BOOL granted))handler NS_AVAILABLE_IOS(7_0);
+```
+
+### AVCaptureDeviceInput
+AVCaptureDeviceInput 是 AVCaptureInput 的子类，使用一个 AVCaptureDevice 类实例创建该类的实例，其管理设备的输入。
+
+在创建了实例对象后，将其添加到 session 中。
+
+```
+NSError *error;
+AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
+if (input && [session canAddInput:input]) {
+	[captureSession addInput:captureDeviceInput];
+}
+```
+
+### AVCaptureOutput
+AVCaptureOutput 是一个抽象类，通常使用的是它的子类。
+
+* AVCaptureMovieFileOutput 用来生成一个影视文件
+* AVCaptureVideoDataOutput 用来处理输入的视频的帧
+* AVCaptureAudioDataOutput 用来处理音频数据
+* AVCaptureStillImageOutput 用来获取图片
+
+在创建了具体的子类后，将它添加到 session 中。
+
+```
+AVCaptureMovieFileOutput *movieOutput = [[AVCaptureMovieFileOutput alloc] init];
+if ([session canAddOutput:movieOutput]) {
+    [session addOutput:movieOutput];
+}
+```
+
+### AVCaptureFileOutput
+AVCaptureFileOutput 是 AVCaptureOutput 的子类，是 AVCaptureMovieFileOutput 、AVCaptureAudioFileOutput 的父类。这个类中定义了文件输出时的地址、时长、容量等属性。
+
+```
+//当前记录的数据的文件的地址
+@property(nonatomic, readonly) NSURL *outputFileURL;
+
+//开始文件的记录，指定文件的地址，以及记录过程中或结束时要通知的代理对象
+//指定的 outputFileURL 必需是有效的且没有文件占用
+- (void)startRecordingToOutputFileURL:(NSURL*)outputFileURL recordingDelegate:(id<AVCaptureFileOutputRecordingDelegate>)delegate;
+
+//该方法可以停止数据向文件中写入
+//如果要停止一个文件的写入转而指定另一个文件的写入，不应调用该方法，只需直接调用上面的方法
+//当因该方法的调用、出错、或写入文件的变更导致当前文件开始停止写入时，最后传入的缓存数据仍会在后台被写入
+//无论何时，要使用文件，都需要等指定的代理对象被告知文件的写入已经结束之后进行
+- (void)stopRecording;
+
+//判断当前是否有数据被写入文件
+@property(nonatomic, readonly, getter=isRecording) BOOL recording;
+
+//表示到目前为止，当前文件已经记录了多长时间
+@property(nonatomic, readonly) CMTime recordedDuration;
+
+//表示到目前为止，当前文件已经记录了多少个字节
+@property(nonatomic, readonly) int64_t recordedFileSize;	
+/**
+下面三个值对文件的记录进行了限制，若果达到限制，则会在回调方法 captureOutput:didFinishRecordingToOutputFileAtURL:fromConnections:error: 中传递相应的错误
+*/
+//表示当前文件能够记录的最长时间，kCMTimeInvalid 表示无时间限制
+@property(nonatomic) CMTime maxRecordedDuration;
+
+//表示当前文件能够记录的最大字节数，0 表示无大小限制
+@property(nonatomic) int64_t maxRecordedFileSize;
+
+//表示记录当前文件时需要保留的最小字节数
+@property(nonatomic) int64_t minFreeDiskSpaceLimit;
+
+//在 Mac OS X 系统下，通过指定遵循 AVCaptureFileOutputDelegate 协议的代理对象，来实现缓存数据的精确记录
+@property(nonatomic, assign) id<AVCaptureFileOutputDelegate> delegate NS_AVAILABLE(10_7, NA);
+
+/**
+在 Mac OS X 系统下，这个属性和方法可以判断记录是否停止，以及控制数据向文件中的停止写入和重新开始写入
+*/
+@property(nonatomic, readonly, getter=isRecordingPaused) BOOL recordingPaused NS_AVAILABLE(10_7, NA);
+- (void)pauseRecording NS_AVAILABLE(10_7, NA);
+- (void)resumeRecording NS_AVAILABLE(10_7, NA);
+```
+
+### AVCaptureFileOutputRecordingDelegate
+AVCaptureFileOutputRecordingDelegate 是文件记录过程中需要用到的协议，它通常的作用是告知代理对象文件记录结束了。
+
+```
+//这个代理方法是遵循该协议的代理对象必须要实现的方法
+//每一个文件记录请求，最终都会调用这个方法，即使没有数据成功写入文件
+//当 error 返回时，文件也可能成功保存了，应检查 error 中的 AVErrorRecordingSuccessfullyFinishedKey 信息，查看具体错误
+- (void)captureOutput:(AVCaptureFileOutput *)captureOutput didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL fromConnections:(NSArray *)connections error:(NSError *)error;
+
+//当数据写入文件后调用，如果数据写入失败，该方法可能不会被调用
+- (void)captureOutput:(AVCaptureFileOutput *)captureOutput didStartRecordingToOutputFileAtURL:(NSURL *)fileURL fromConnections:(NSArray *)connections;
+
+/**
+在 Mac OS X 系统下，当文件的记录被暂停或重新开始，会调用下面的方法，如果记录被终止，不会调用下面的方法
+*/
+- (void)captureOutput:(AVCaptureFileOutput *)captureOutput didPauseRecordingToOutputFileAtURL:(NSURL *)fileURL fromConnections:(NSArray *)connections NS_AVAILABLE(10_7, NA);
+- (void)captureOutput:(AVCaptureFileOutput *)captureOutput didResumeRecordingToOutputFileAtURL:(NSURL *)fileURL fromConnections:(NSArray *)connections NS_AVAILABLE(10_7, NA);
+
+//在 Mac OS X 系统下，当记录将被停止，无论是主动的还是被动的，都会调用下面的方法
+- (void)captureOutput:(AVCaptureFileOutput *)captureOutput willFinishRecordingToOutputFileAtURL:(NSURL *)fileURL fromConnections:(NSArray *)connections error:(NSError *)error NS_AVAILABLE(10_7, NA);
+```
+
+### AVCaptureFileOutputDelegate
+AVCaptureFileOutputDelegate 这个协议只用于 Mac OS X 系统下，它给了客户端精准操控数据的机会。
+
+```
+/**
+在 Mac OS X 10.8 系统之前，实现代理方法 captureOutput:didOutputSampleBuffer:fromConnection:
+后便可以在该方法中实现数据记录的准确开始或结束，而要实现在任一一个画面帧处开始或停止数据的记录，要对每收到的
+帧数据进行预先处理，这个过程消耗电能、产生热量、占用 CPU 资源，所以在 Mac OS X 10.8 及其之后的系统，提供了
+下面的代理方法，来确定客户端需不需要随时进行记录的开始或停止。
+如果这个方法返回 NO ，对数据记录的设置将在开启记录之后进行。
+*/
+- (BOOL)captureOutputShouldProvideSampleAccurateRecordingStart:(AVCaptureOutput *)captureOutput NS_AVAILABLE(10_8, NA);
+
+/**
+如果上面的方法返回了 YES ，那么客户端便可以使用下面的方法对每一个视频帧数据或音频数据进行操作
+为了提高性能，缓存池中的缓存变量的内存通常会被复用，如果长时间使用缓存变量，那么新的缓存数据无法复制到
+相应的内存中便会被废弃，所以若需要长时间使用缓存数据 sampleBuffer ，应复制一份，使其本身能够被系统复用
+*/
+- (void)captureOutput:(AVCaptureFileOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection NS_AVAILABLE(10_7, NA);
+```
+
+### AVCaptureMovieFileOutput
+AVCaptureMovieFileOutput 是 AVCaptureFileOutput 的子类，它实现了在 AVCaptureFileOutput 中声明的视频数据记录方法，并且可以设置数据的格式、写入元数据、编码方式等属性。
+
+```
+//如果视频数据按片段写入，该值指定片段的时长，默认值是 10 秒
+//该值为 kCMTimeInvalid 表示不使用片段对视频进行记录，这样视频只能一次写入，不能被打断
+//改变该值不影响当前正在写入的片段时长
+@property(nonatomic) CMTime movieFragmentInterval;
+
+//向文件中添加的 AVMetadataItem 类元数据
+@property(nonatomic, copy) NSArray *metadata;
+
+//获取记录 connection 中数据时，使用的设置
+- (NSDictionary *)outputSettingsForConnection:(AVCaptureConnection *)connection NS_AVAILABLE(10_7, 10_0);
+
+//设置记录 connection 中数据时，使用的设置 AVVideoSettings.h
+//outputSettings 为空，表示在将 connection 中的数据写入文件之前，其格式不做改变
+//outputSettings 为 nil 时，其数据格式将由 session preset 决定
+- (void)setOutputSettings:(NSDictionary *)outputSettings forConnection:(AVCaptureConnection *)connection NS_AVAILABLE(10_7, 10_0);
+
+//在 iOS 系统下，获取有效的编码格式，作为 AVVideoCodecKey 的值，使用上面的方法进行设置
+@property(nonatomic, readonly) NSArray *availableVideoCodecTypes NS_AVAILABLE_IOS(10_0);
+
+//设置文件记录过程中，是否创建一个元数据对 connection 的 videoOrientation 和 videoMirrored 属性变化进行跟踪记录
+//connection 的属性 mediaType 的值必需是 AVMediaTypeVideo 
+//该值的设置只在记录开始之前有效，开始记录之后改变该值无效果
+- (void)setRecordsVideoOrientationAndMirroringChanges:(BOOL)doRecordChanges asMetadataTrackForConnection:(AVCaptureConnection *)connection NS_AVAILABLE_IOS(9_0);
+
+//判断该类实例对象是否会在记录的过程中创建一个 timed metadata track 记录 connection 的 videoOrientation 和 videoMirrored 属性变化情况
+- (BOOL)recordsVideoOrientationAndMirroringChangesAsMetadataTrackForConnection:(AVCaptureConnection *)connection NS_AVAILABLE_IOS(9_0);
+```
+
+### AVCaptureAudioFileOutput
+AVCaptureAudioFileOutput 是 AVCaptureFileOutput 的子类，该类用于将媒体数据记录为一个音频文件。
+
+```
+//返回该类支持的音频文件类型
++ (NSArray *)availableOutputFileTypes;
+
+//开始记录音频文件
+- (void)startRecordingToOutputFileURL:(NSURL*)outputFileURL outputFileType:(NSString *)fileType recordingDelegate:(id<AVCaptureFileOutputRecordingDelegate>)delegate;
+
+//要写入音频文件中的元数据 AVMetadataItem 集合
+@property(nonatomic, copy) NSArray *metadata; 
+
+//写入的音频文件的设置 AVAudioSettings.h
+@property(nonatomic, copy) NSDictionary *audioSettings;
+
+```
+
+### AVCaptureVideoDataOutput
+AVCaptureVideoDataOutput 是 AVCaptureOutput 的子类，该类可以用来处理捕获的每一个视频帧数据。创建一个该类的实例对象后，要调用下面的方法设置一个代理对象，及调用代理对象所实现的协议方法的队列。
+
+```
+- (void)setSampleBufferDelegate:(id<AVCaptureVideoDataOutputSampleBufferDelegate>)sampleBufferDelegate queue:(dispatch_queue_t)sampleBufferCallbackQueue;
+```
+指定的队列 sampleBufferCallbackQueue 必需是串行队列以保证传递的帧是按记录时间先后传递的。
+
+```
+//设置输出的视频要进行怎样的格式处理
+//设置为空（[NSDictionary dictionary]）表示不改变输入时的视频格式
+//设置为 nil 表示未压缩格式
+@property(nonatomic, copy) NSDictionary *videoSettings;
+
+//获取 kCVPixelBufferPixelFormatTypeKey 的有效值
+@property(nonatomic, readonly) NSArray *availableVideoCVPixelFormatTypes NS_AVAILABLE(10_7, 5_0);
+
+//获取 AVVideoCodecKey 的有效值
+@property(nonatomic, readonly) NSArray *availableVideoCodecTypes NS_AVAILABLE(10_7, 5_0);
+
+//表示当回调队列阻塞时，是否立刻丢弃新接收的帧数据
+@property(nonatomic) BOOL alwaysDiscardsLateVideoFrames;
+```
+
+### AVCaptureVideoDataOutputSampleBufferDelegate
+该协议用来处理接收的每一个帧数据，或者提示客户端有帧数据被丢弃。
+
+```
+//接收到一个帧数据时，在指定的串行队列中调用该方法，携带帧数据并包含有其他帧信息
+- (void)captureOutput:(AVCaptureOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection;
+
+//丢弃一个帧数据时，在指定的串行队列中调用该方法，sampleBuffer 只携带帧信息，具体帧数据并未携带
+- (void)captureOutput:(AVCaptureOutput *)captureOutput didDropSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection NS_AVAILABLE(10_7, 6_0);
+```
+
+### AVCaptureVideoPreviewLayer
+AVCaptureVideoPreviewLayer 是 CALayer 的子类，使用该类可以实现捕获视频的显示。使用一个 session 创建一个该类对象，而后将该类对象插入到图层树中，从而显示捕获的视频。
+
+```
+//创建方法
++ (instancetype)layerWithSession:(AVCaptureSession *)session;
+- (instancetype)initWithSession:(AVCaptureSession *)session;
+```
+
+修改 AVCaptureVideoPreviewLayer 的属性 **videoGravity** 值，可以选择显示捕获视频时的界面大小变化方式，它有以下可选值：
+
+* AVLayerVideoGravityResize 默认值，直接铺满屏幕，及时画面变形
+* AVLayerVideoGravityResizeAspect 保持画面的横纵比，不铺满屏幕，多余的空间显示黑色
+* AVLayerVideoGravityResizeAspectFill 保持画面的横纵比，铺满屏幕，多余的画面进行裁剪
+
+### AVCaptureAudioDataOutput
+AVCaptureAudioDataOutput 是 AVCaptureOutput 的子类，该类可以处理接收到的音频数据。同 AVCaptureVideoDataOutput 类似，该类也提供了一个方法，用于设置代理对象，以及调用代理对象实现的协议方法时的队列。
+
+```
+- (void)setSampleBufferDelegate:(id<AVCaptureAudioDataOutputSampleBufferDelegate>)sampleBufferDelegate queue:(dispatch_queue_t)sampleBufferCallbackQueue;
+```
+
+### AVCaptureAudioDataOutputSampleBufferDelegate
+该协议提供了一个方法，用来实现对音频数据的接收处理。
+
+```
+- (void)captureOutput:(AVCaptureOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection;
+```
+
+>> 对于每个设备，其支持播放或捕获的媒体资源都不相同，通过 **AVCaptureDeviceFormat** 类可以获取相关信息。
+
+## 视听资源读写
+对媒体数据资源进行简单的转码或裁剪，使用 AVAssetExportSession 类便足够了，但是更深层次的修改媒体资源，便需要用到 **AVAssetReader** 类和 **AVAssetWriter** 类。
+
+AVAssetReader 只能与一个资源 asset 相关联，且不能用来读取实时数据，在开始读取数据之前，需要为 reader 添加 **AVAssetReaderOutput** 的实例对象。这个实例对象描述的是待读取的数据资源来源类型，通常使用 **AVAssetReaderAudioMixOutput** 、**AVAssetReaderTrackOutput** 、**AVAssetReaderVideoCompositionOutput** 三种子类。
+
+AVAssetWriter 可以将来自多个数据源的数据以指定的格式写入到一个指定的文件中，且其只能对应一个文件。在写文件之前，需要用每一个 **AVAssetWriterInput** 类实例对象来描述相应的数据源。每一个 AVAssetWriterInput 实例对象接收的数据都应是 CMSampleBufferRef 类型的变量。如果使用 **AVAssetWriterInputPixelBufferAdaptor** 类也可以直接将 **CVPixelBufferRef** 类型的变量数据添加到 writer input 中。
+
+AVAssetReader 与 AVAssetWriter 结合起来使用，便可以对读取的数据进行相应的编辑修改，而后写入到一个文件中并保存。
+
+### AVAssetReader
+使用该类读取媒体资源，其提供的初始化方法与一个 asset 相关联。
+
+```
+//对于提供的参数 asset ，如果是可被修改的，那么在开始读取操作后，对其进行了修改，之后的读取操作都是无效的
++ (nullable instancetype)assetReaderWithAsset:(AVAsset *)asset error:(NSError * _Nullable * _Nullable)outError;
+- (nullable instancetype)initWithAsset:(AVAsset *)asset error:(NSError * _Nullable * _Nullable)outError NS_DESIGNATED_INITIALIZER;
+
+//当前读取操作的状态，可取值有 AVAssetReaderStatusUnknown 、AVAssetReaderStatusReading 、
+AVAssetReaderStatusCompleted 、AVAssetReaderStatusFailed 、AVAssetReaderStatusCancelled
+@property (readonly) AVAssetReaderStatus status;
+//当 status 的值为 AVAssetReaderStatusFailed 时，描述错误信息
+@property (readonly, nullable) NSError *error;
+
+
+//限制可读取的资源的时间范围
+@property (nonatomic) CMTimeRange timeRange;
+
+//判断能否添加该数据源
+- (BOOL)canAddOutput:(AVAssetReaderOutput *)output;
+//添加数据源
+- (void)addOutput:(AVAssetReaderOutput *)output;
+
+//开始读取
+- (BOOL)startReading;
+//结束读取
+- (void)cancelReading;
+```
+
+### AVAssetReaderOutput
+AVAssetReaderOutput 是用来描述待读取的数据的抽象类，读取资源时，应创建该类的对象，并添加到相应的 AVAssetReader 实例对象中去。
+
+```
+//获取的媒体数据的类型
+@property (nonatomic, readonly) NSString *mediaType;
+
+//是否拷贝缓存中的数据到客户端，默认 YES ，客户端可以随意修改数据，但是为优化性能，通常设为 NO
+@property (nonatomic) BOOL alwaysCopiesSampleData NS_AVAILABLE(10_8, 5_0);
+
+//同步获取下一个缓存数据，使用返回的数据结束后，应使用 CFRelease 函数将其释放
+//当错误或没有数据可读取时，返回 NULL ，返回空后，应检查相关联的 reader 的状态
+- (nullable CMSampleBufferRef)copyNextSampleBuffer CF_RETURNS_RETAINED;
+
+//是否支持重新设置数据的读取时间范围，即能否修改 reader 的 timeRange 属性
+@property (nonatomic) BOOL supportsRandomAccess NS_AVAILABLE(10_10, 8_0);
+//设置重新读取的时间范围，这个时间范围集合中的每一个时间范围的开始时间必需是增长的且各个时间范围不能重叠
+//应在 reader 调用 copyNextSampleBuffer 方法返回 NULL 之后才可调用
+- (void)resetForReadingTimeRanges:(NSArray<NSValue *> *)timeRanges NS_AVAILABLE(10_10, 8_0);
+//该方法调用后，上面的方法即不可再调用，同时 reader 的状态也不会被阻止变为 AVAssetReaderStatusCompleted 了
+- (void)markConfigurationAsFinal NS_AVAILABLE(10_10, 8_0);
+```
+
+### AVAssetReaderTrackOutput
+AVAssetReaderTrackOutput 是 AVAssetReaderOutput 的子类，它用来描述待读取的数据来自 asset track ，在读取前，还可以对数据的格式进行修改。
+
+```
+//初始化方法，参数中指定了 track 和 媒体的格式
+//指定的 track 应在 reader 的 asset 中
++ (instancetype)assetReaderTrackOutputWithTrack:(AVAssetTrack *)track outputSettings:(nullable NSDictionary<NSString *, id> *)outputSettings;
+- (instancetype)initWithTrack:(AVAssetTrack *)track outputSettings:(nullable NSDictionary<NSString *, id> *)outputSettings NS_DESIGNATED_INITIALIZER;
+
+//指定音频处理时的算法
+@property (nonatomic, copy) NSString *audioTimePitchAlgorithm NS_AVAILABLE(10_9, 7_0);
+```
+
+### AVAssetReaderAudioMixOutput
+AVAssetReaderAudioMixOutput 是 AVAssetReaderOutput 的子类，它用来描述待读取的数据来自音频组合数据。创建该类实例对象提供的参数 audioTracks 集合中的每一个 asset track 都属于相应的 reader 中的 asset 实例对象，且类型为 AVMediaTypeAudio 。
+参数 audioSettings 给出了音频数据的格式设置。
+```
++ (instancetype)assetReaderAudioMixOutputWithAudioTracks:(NSArray<AVAssetTrack *> *)audioTracks audioSettings:(nullable NSDictionary<NSString *, id> *)audioSettings;
+- (instancetype)initWithAudioTracks:(NSArray<AVAssetTrack *> *)audioTracks audioSettings:(nullable NSDictionary<NSString *, id> *)audioSettings NS_DESIGNATED_INITIALIZER;
+```
+
+此外，该类的 audioMix 属性，描述了从多个 track 中读取的音频的音量变化情况。
+
+```
+@property (nonatomic, copy, nullable) AVAudioMix *audioMix;
+```
 
 
 
