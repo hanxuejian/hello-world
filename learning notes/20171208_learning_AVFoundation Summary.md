@@ -16,7 +16,7 @@ AVFoundation 是 Objective-C 中创建及编辑视听媒体文件的几个框架
 
 5. 若要生成视频的缩略图，可以使用 asset 初始化一个 **AVAssetImageGenerator** 实例对象，它会使用默认可用的视频 tracks 来生成图片。
 
-6. AVFoundation 中可以使用 **compositions** 将多个媒体数据（video/audio tracks）合成为一个 asset ，这个过程中，可以添加或移除 tracks ，调整它们的顺序，或者设置音频的音量和倾斜度，视频容量等属性。这些媒体数据的集合保存在内存中，直到使用 export session 将它导出到本地文件中。另外，还可以使用 asset writer 创建 asset 。
+6. AVFoundation 中可以使用 **compositions** 将多个媒体数据（video/audio tracks）合成为一个 asset ，这个过程中，可以添加或移除 tracks ，调整它们的顺序，或者设置音频的音量和变化坡度，视频容量等属性。这些媒体数据的集合保存在内存中，直到使用 export session 将它导出到本地文件中。另外，还可以使用 asset writer 创建 asset 。
 
 7. 使用 **capture session** 协调从设备（如相机、麦克风）输入的数据和输出目标（如视频文件）。可以为 session 设置多个输入和输出，即使它正在工作，还可以通过它停止数据的流动。另外，还可以使用 **preview layer** 将相机记录的影像实时展示给用户。
 
@@ -87,7 +87,7 @@ NSArray *keys = @[@"duration",@"tracks"];
 + (instancetype)assetImageGeneratorWithAsset:(AVAsset *)asset;
 - (instancetype)initWithAsset:(AVAsset *)asset NS_DESIGNATED_INITIALIZER;
 ```
-当然，在此之前，最好调用 AVAsset 中的方法 `- (NSArray<AVAssetTrack *> *)tracksWithMediaCharacteristic:(NSString *)mediaCharacteristic;` 来判断是否有可视媒体数据。如果有，那么再创建 AVAssetImageGenerator 对象，而后再调用下面的方法，来获取一张或多张图片。
+当然，在此之前，最好调用 AVAsset 中的方法 `- (NSArray<AVAssetTrack *> *)tracksWithMediaCharacteristic:(NSString *)mediaCharacteristic;` 来判断 asset 中是否有可视媒体数据。如果有，那么再创建 AVAssetImageGenerator 对象，而后再调用下面的方法，来获取一张或多张图片。
 
 ```
 //获取一张图片，requestedTime 指定要获取视频中哪个时刻的图片，actualTime 返回图片实际是视频的哪个时刻，outError 返回错误信息
@@ -101,7 +101,7 @@ typedef void (^AVAssetImageGeneratorCompletionHandler)(CMTime requestedTime, CGI
 ```
 
 ### AVAssetExportSession
-使用 AVAssetExportSession 类对视频进行裁剪及转码，即将一个 AVAsset 类实例修改后保存为例一个 AVAsset 类实例，最后保存到文件中。
+使用 AVAssetExportSession 类对视频进行裁剪及转码，即将一个 AVAsset 类实例修改后保存为另一个 AVAsset 类实例，最后保存到文件中。
 
 在修改资源之前，为避免不兼容带来的错误，可以先调用下面的方法，检查预设置是否合理。
 
@@ -176,9 +176,9 @@ typedef void (^AVAssetImageGeneratorCompletionHandler)(CMTime requestedTime, CGI
 若要管理多个资源的播放，则应使用 AVPlayer 的子类 **AVQueuePlayer** ，这个子类拥有的多个 AVPlayerItem 同各个资源相对应。
 
 ### 不同类型的 asset
-对于播放不同类型的资源，需要进行的准备工作有所不同，这主要取决于资源的来源，可能资源是本地设备上的文件，也可能资源来自网络。
+对于播放不同类型的资源，需要进行的准备工作有所不同，这主要取决于资源的来源。资源数据可能来自本地设备上文件的读取，也可能来自网络上数据流。
 
-对于本地文件，可以使用文件地址创建 AVAsset 对象，而后使用该对象创建 AVPlayerItem 对象，最后将这个 item 对象于 AVPlayer 对象相关联。之后，便是等待 status 的状态变为 AVPlayerStatusReadyToPlay ，便可以进行播放了。
+对于本地文件，可以使用文件地址创建 AVAsset 对象，而后使用该对象创建 AVPlayerItem 对象，最后将这个 item 对象与 AVPlayer 对象相关联。之后，便是等待 status 的状态变为 AVPlayerStatusReadyToPlay ，便可以进行播放了。
 
 对于网络数据的播放，不能使用地址创建 AVAsset 对象了，而是直接创建 AVPlayerItem 对象，将其同 AVPlayer 对象相关联，当 status 状态变为 AVPlayerStatusReadyToPlay 后，AVAsset 和 AVAssetTrack 对象将由 item 对象创建。
 
@@ -204,7 +204,7 @@ item 的 **currentTime** 属性值表示当前 item 的播放时间，可以调�
 - (void)seekToDate:(NSDate *)date;
 - (void)seekToTime:(CMTime)time toleranceBefore:(CMTime)toleranceBefore toleranceAfter:(CMTime)toleranceAfter;
 
-//这两个方法传入了一个回调，当一个时间跳转请求被新的请求或其他操作打断时，会调会被执行并且 finished 参数为 NO
+//这两个方法传入了一个回调，当一个时间跳转请求被新的请求或其他操作打断时，回调也会被执行但是此时 finished 参数值为 NO
 - (void)seekToTime:(CMTime)time completionHandler:(void (^)(BOOL finished))completionHandler NS_AVAILABLE(10_7, 5_0);
 - (void)seekToTime:(CMTime)time toleranceBefore:(CMTime)toleranceBefore toleranceAfter:(CMTime)toleranceAfter completionHandler:(void (^)(BOOL finished))completionHandler NS_AVAILABLE(10_7, 5_0);
 ```
@@ -230,10 +230,10 @@ item 的 **currentTime** 属性值表示当前 item 的播放时间，可以调�
 - (void)removeTimeObserver:(id)observer;
 ```
 
-当 item 播放结束后，再次调用 player 的方法 play 不会使 item 重新播放，要实现重播，可以注册一个 ** AVPlayerItemDidPlayToEndTimeNotification** 通知，当接收到这个通知时，可以调 **seekToTime:** 方法，传入 **kCMTimeZero** 参数，将 player 的播放时间重置。
+当 item 播放结束后，再次调用 player 的方法 play 不会使 item 重新播放，要实现重播，可以注册一个 **AVPlayerItemDidPlayToEndTimeNotification** 通知，当接收到这个通知时，可以调 **seekToTime:** 方法，传入 **kCMTimeZero** 参数，将 player 的播放时间重置。
 
 ## 媒体资源编辑基本类
-AVFoundation 框架中提供了丰富的接口用于视听资源的编辑，其中的关键是 **composition** ，它将不同的 asset 相结合并形成一个新的 asset 。使用 **AVMutableComposition** 类可以增删 asset 来将指定的 asset 集合到一起。除此之外，若想集合到一起的视听资源以自定义的方式进行播放，需要使用 **AVMutableAudioMix** 和 **AVMutableVideoComposition** 类对其中的资源进行协调管理。最终要使用 **AVAssetExportSession** 类将编辑的内容保存到文件中。
+AVFoundation 框架中提供了丰富的接口用于视听资源的编辑，其中的关键是 **composition** ，它将不同的 asset 相结合并形成一个新的 asset 。使用 **AVMutableComposition** 类可以增删 asset 来将指定的 asset 集合到一起。除此之外，若想将集合到一起的视听资源以自定义的方式进行播放，需要使用 **AVMutableAudioMix** 和 **AVMutableVideoComposition** 类对其中的资源进行协调管理。最终要使用 **AVAssetExportSession** 类将编辑的内容保存到文件中。
 
 ### AVComposition
 同 AVAsset 拥有多个 AVAssetTrack 一样，作为子类的 AVComposition 也拥有多个 **AVCompositionTrack** ，而 AVCompositionTrack 是 AVAssetTrack 的子类。所以，AVComposition 实例对象是多个 track 的集合，真正描述媒体属性的是 AVCompositionTrack 实例对象。而 AVCompositionTrack 又是媒体数据片段的集合，这些数据片段由 **AVCompositionTrackSegment** 类进行描述。
@@ -244,7 +244,7 @@ AVFoundation 框架中提供了丰富的接口用于视听资源的编辑，其�
 //获取 composition 中包含的 tracks
 @property (nonatomic, readonly) NSArray<AVCompositionTrack *> *tracks;
 
-//获取 composition 可见部分的大小
+//获取 composition 中可视媒体资源播放时在屏幕上显示的大小
 @property (nonatomic, readonly) CGSize naturalSize;
 
 //获取 composition 生成 asset 时的指定配置
@@ -261,11 +261,11 @@ AVFoundation 框架中提供了丰富的接口用于视听资源的编辑，其�
 AVMutableComposition *mutableComposition = [AVMutableComposition composition];
 
 //进行添加资源等操作
-····
+<#····#>
 
 //使用可变的 composition 生成一个不可变的 composition 以供使用
 AVComposition *composition = [myMutableComposition copy];
-AVPlayerItem *playerItemForSnapshottedComposition = [[AVPlayerItem alloc] initWithAsset:immutableSnapshotOfMyComposition];
+AVPlayerItem *playerItem = [[AVPlayerItem alloc] initWithAsset:composition];
 ```
 
 ### AVMutableComposition
@@ -317,13 +317,13 @@ AVMutableComposition 中也提供了过滤 AVMutableCompositionTrack 的接口
 ```
 
 ### AVCompositionTrack
-AVCompositionTrack 类同其父类 **AVAssetTrack** 一样是媒体资源的管理者，它实际是媒体资源数据的集合，它的属性 **segments** 是 **AVCompositionTrackSegment** 类的实例对象集合，每个对象描述一个媒体数据片段。对于 AVCompositionTrack 并不常用，通常使用的是它的子类 **AVMutableCompositionTrack** 。
+AVCompositionTrack 类同其父类 **AVAssetTrack** 一样是媒体资源的管理者，它实际是媒体资源数据的集合，它的属性 **segments** 是 **AVCompositionTrackSegment** 类的实例对象集合，每个对象描述一个媒体数据片段。类 AVCompositionTrack 并不常用，通常使用的是它的子类 **AVMutableCompositionTrack** 。
 
 ### AVMutableCompositionTrack
 AVMutableCompositionTrack 中提供的属性如下：
 
 ```
-//没有外部数值指定时的媒体1秒的时间粒度
+//没有外部数值指定时，媒体1秒钟时间的粒度
 @property (nonatomic) CMTimeScale naturalTimeScale;
 
 //当前 track 相关联的语言编码
@@ -407,7 +407,7 @@ AVAssetTrackSegment 有两个属性
 ```
 
 ## 音频的自定义播放
-要在媒体资源播放的过程中实现音频的自定义播放，需要用 **AVMutableAudioMix** 对不同的音频进行编辑。这个类的实例对象的属性 **inputParameters** 是音量描述对象的集合，每个对象都是对一个 audio track 的音量变化的描述。
+要在媒体资源播放的过程中实现音频的自定义播放，需要用 **AVMutableAudioMix** 对不同的音频进行编辑。这个类的实例对象的属性 **inputParameters** 是音量描述对象的集合，每个对象都是对一个 audio track 的音量变化的描述，如下示例：
 
 ```
 AVMutableAudioMix *mutableAudioMix = [AVMutableAudioMix audioMix];
@@ -457,7 +457,7 @@ AVMutableAudioMixInputParameters 是 AVAudioMixInputParameters 的子类，它�
 ```
 
 ## 视频的自定义播放
-同音频的自定义播放一样，要实现视频的自定义播放，仅仅将视频资源集合到一起是不够的，需要使用 **AVMutableVideoComposition** 类来定义不同的的视频资源在不同的时间范围的播放方式。
+同音频的自定义播放一样，要实现视频的自定义播放，仅仅将视频资源集合到一起是不够的，需要使用 **AVMutableVideoComposition** 类来定义不同的视频资源在不同的时间范围内的播放方式。
 
 ### AVVideoComposition
 AVVideoComposition 是 AVMutableVideoComposition 的父类，它的主要属性和方法如下：
@@ -475,8 +475,8 @@ AVVideoComposition 是 AVMutableVideoComposition 的父类，它的主要属性�
 //视频显示范围大小的缩放比例（仅仅对 iOS 有效）
 @property (nonatomic, readonly) float renderScale;
 
-//视频集合中的具体视频的集合，其是遵循 AVVideoCompositionInstruction 协议的类实例对象
-//这些视频构成一个完整的时间线，不能重叠，不能间断，并且在数组中的顺序及为视频的播放顺序
+//描述视频集合中具体视频播放方式信息的集合，其是遵循 AVVideoCompositionInstruction 协议的类实例对象
+//这些视频播放信息构成一个完整的时间线，不能重叠，不能间断，并且在数组中的顺序即为相应视频的播放顺序
 @property (nonatomic, readonly, copy) NSArray<id <AVVideoCompositionInstruction>> *instructions;
 
 //用于组合视频帧与动态图层的 Core Animation 的工具对象，可以为 nil 
@@ -485,7 +485,7 @@ AVVideoComposition 是 AVMutableVideoComposition 的父类，它的主要属性�
 //直接使用一个 asset 创建一个实例，创建的实例的各个属性会根据 asset 中的所有的 video tracks 的属性进行计算并适配，所以在调用该方法之前，确保 asset 中的属性已经加载
 //返回的实例对象的属性 instructions 中的对象会对应每个 asset 中的 track 中属性要求
 //返回的实例对象的属性 frameDuration 的值是 asset 中 所有 track 的 nominalFrameRate 属性值最大的，如果这些值都为 0 ，默认为 30fps
-//返回的实例对象的属性 renderSize 的值是 asset 的 naturalSize 属性值，如果 asset 是 AVComposition 类的实例，否则，renderSize 的值将包含每个 track 的
+//返回的实例对象的属性 renderSize 的值是 asset 的 naturalSize 属性值，如果 asset 是 AVComposition 类的实例。否则，renderSize 的值将包含每个 track 的 naturalSize 属性值
 + (AVVideoComposition *)videoCompositionWithPropertiesOfAsset:(AVAsset *)asset NS_AVAILABLE(10_9, 6_0);
 
 //这三个属性设置了渲染帧时的颜色空间、矩阵、颜色转换函数，可能的值都在 AVVideoSetting.h 文件中定义
@@ -547,7 +547,7 @@ AVMutableVideoCompositionInstruction 是 AVVideoCompositionInstruction 的子类
 ```
 
 ### AVVideoCompositionLayerInstruction
-AVVideoCompositionLayerInstruction 是对给定的视频资源进行描述的类，通过下面的方法，可以获取仿射变化、透明度变化、裁剪区域变化的梯度信息。
+AVVideoCompositionLayerInstruction 是对给定的视频资源的不同播放方式进行描述的类，通过下面的方法，可以获取仿射变化、透明度变化、裁剪区域变化的梯度信息。
 
 ```
 //获取包含指定时间的仿射变化梯度信息
@@ -610,7 +610,7 @@ AVMutableVideoCompositionLayerInstruction 是 AVVideoCompositionLayerInstruction
 ```
 
 ### AVVideoCompositionCoreAnimationTool
-在自定义视频播放时，可能需要添加水印、标题或者其他的动画效果，需要使用该类。该类通常用来协调离线视频中图层与动画图层的组合（如使用 AVAssetExportSession 和 AVAssetReader 导出视频文件或读取视频文件时），而若是在线实时的视频播放，应使用 AVSynchronizedLayer 类来同步视频的播放与动画的效果。
+在自定义视频播放时，可能需要添加水印、标题或者其他的动画效果，需要使用该类。该类通常用来协调离线视频中图层与动画图层的组合（如使用 AVAssetExportSession 和 AVAssetReader 、AVAssetReader 类导出视频文件或读取视频文件时），而若是在线实时的视频播放，应使用 AVSynchronizedLayer 类来同步视频的播放与动画的效果。
 
 在使用该类时，注意动画在整个视频的时间线上均可以被修改，所以，动画的开始时间应该设置为 **AVCoreAnimationBeginTimeAtZero** ，这个值其实比 0 大，属性值 **removedOnCompletion** 应该置为 NO，以防当动画执行结束后被移除，并且不应使用与任何的 UIView 相关联的图层。
 
@@ -829,7 +829,7 @@ AVMutableVideoCompositionLayerInstruction 是 AVVideoCompositionLayerInstruction
 	```
 
 ## 媒体资源捕获
-通过麦克风、摄像机等设备，可以捕获外界的声音和影像。要处理设备捕获的数据，需要使用 **AVCaptureDevice** 类描述设备，使用 **AVCaptureInput** 配置数据从设备的输入，使用 **AVCaptureOutput** 类管理数据到文件的写入，而数据的输入到写出，需要使用 **AVCaptureSession** 类进行协调。此外，可以使用 **AVCaptureVideoPreviewLayer** 类显示相机正在记录的画面。
+通过麦克风、摄像机等设备，可以捕获外界的声音和影像。要处理设备捕获的数据，需要使用 **AVCaptureDevice** 类描述设备，使用 **AVCaptureInput** 配置数据从设备的输入，使用 **AVCaptureOutput** 类管理数据到文件的写入，而数据的输入到写出，需要使用 **AVCaptureSession** 类进行协调。此外，可以使用 **AVCaptureVideoPreviewLayer** 类显示相机正在拍摄的画面。
 
 一个设备可以有多个输入，使用 **AVCaptureInputPort** 类描述这些输入，用 **AVCaptureConnection** 类描述具体类型的输入与输出的关系，可以实现更精细的数据处理。
 
@@ -1168,7 +1168,7 @@ AVCaptureAudioDataOutput 是 AVCaptureOutput 的子类，该类可以处理接�
 - (void)captureOutput:(AVCaptureOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection;
 ```
 
->> 对于每个设备，其支持播放或捕获的媒体资源都不相同，通过 **AVCaptureDeviceFormat** 类可以获取相关信息。
+> 对于每个设备，其支持播放或捕获的媒体资源都不相同，通过 **AVCaptureDeviceFormat** 类可以获取相关信息。
 
 ## 视听资源读写
 对媒体数据资源进行简单的转码或裁剪，使用 AVAssetExportSession 类便足够了，但是更深层次的修改媒体资源，便需要用到 **AVAssetReader** 类和 **AVAssetWriter** 类。
@@ -1247,6 +1247,7 @@ AVAssetReaderTrackOutput 是 AVAssetReaderOutput 的子类，它用来描述待�
 ### AVAssetReaderAudioMixOutput
 AVAssetReaderAudioMixOutput 是 AVAssetReaderOutput 的子类，它用来描述待读取的数据来自音频组合数据。创建该类实例对象提供的参数 audioTracks 集合中的每一个 asset track 都属于相应的 reader 中的 asset 实例对象，且类型为 AVMediaTypeAudio 。
 参数 audioSettings 给出了音频数据的格式设置。
+
 ```
 + (instancetype)assetReaderAudioMixOutputWithAudioTracks:(NSArray<AVAssetTrack *> *)audioTracks audioSettings:(nullable NSDictionary<NSString *, id> *)audioSettings;
 - (instancetype)initWithAudioTracks:(NSArray<AVAssetTrack *> *)audioTracks audioSettings:(nullable NSDictionary<NSString *, id> *)audioSettings NS_DESIGNATED_INITIALIZER;
@@ -1258,8 +1259,19 @@ AVAssetReaderAudioMixOutput 是 AVAssetReaderOutput 的子类，它用来描述�
 @property (nonatomic, copy, nullable) AVAudioMix *audioMix;
 ```
 
+### AVAssetReaderVideoCompositionOutput
+AVAssetReaderVideoCompositionOutput 是 AVAssetReaderOutput 的子类，该类用来表示要读取的类是组合的视频数据。
+同 AVAssetReaderAudioMixOutput 类似，该类也提供了两个创建实例的方法，需要提供的参数的 videoTracks 集合中每一个 track 都是
+与 reader 相关联的 asset 中的 track 。
 
+```
++ (instancetype)assetReaderVideoCompositionOutputWithVideoTracks:(NSArray<AVAssetTrack *> *)videoTracks videoSettings:(nullable NSDictionary<NSString *, id> *)videoSettings;
+- (instancetype)initWithVideoTracks:(NSArray<AVAssetTrack *> *)videoTracks videoSettings:(nullable NSDictionary<NSString *, id> *)videoSettings NS_DESIGNATED_INITIALIZER;
+```
+该类的属性 videoComposition 同样描述了每个 track 的帧的显示方式。
 
+```
+@property (nonatomic, copy, nullable) AVVideoComposition *videoComposition;
+```
 
-
-
+> 使用 AVOutputSettingsAssistant 类可以获取简单的编码设置
