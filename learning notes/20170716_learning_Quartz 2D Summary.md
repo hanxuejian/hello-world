@@ -31,6 +31,7 @@ CGContextRef myContext = [[NSGraphicsContext currentContext] graphicsPort];
 路径中包含一个或多个图形，或者多个子路径，而每个子路径可以是直线或曲线组成的简单图形，也可以是由许多线条组成的复杂图案。一个子路径可以是闭合的，也可以是非闭合的，对于直线、弧线、曲线，其是否闭合不是看它们的路径的起点和终点是否重合，而是这条子路径是否调用了 CGContextClosePath 方法，当然闭合的路径起始点与终点一定是重合的。
 
 创建路径应注意以下几点：
+
 * 开始创建路径应调用 CGContextBeginPath 方法
 * 对于一个空的路径是没有当前点坐标的，所以在添加直线、曲线、弧线这种从当前点开始绘制的线条时，应先调用 CGContextMoveToPoint 方法
 * 调用 CGContextClosePath 方法关闭当前子路径，再次添加线条，则开始了一个新路径
