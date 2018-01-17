@@ -396,6 +396,388 @@ glLabelObjectEXT(GL_VERTEX_ARRAY_OBJECT_EXT, _spaceshipMesh, 0, "Spaceship");
 ### 基于瓦片的延迟渲染
 在 iOS 设备上的所有 GPU 都使用了 tile-based deffered rendering（TBDR）技术。当 OpenGL ES 函数将渲染指令提交到硬件时，其只是被保存在命令缓存区中，并没有立即执行。当要显示渲染缓存区中的内容或刷新命令缓存区中的命令时，硬件才开始对像素进行处理。在处理过程中，整个帧会被分为许多个瓦片，然后对每一个瓦片执行一遍渲染命令。瓦片的内存是 GPU 硬件中的一部分，所以渲染过程相较于传统流模式快。因为在这种 GPU 结构中可以一次处理整个场景中的所有顶点，并且消除隐藏面的片段数据。对于不可见且不参与抽样处理的像素会被遗弃，这样减少 GPU 的计算量。
 
+当 TBDR 图形处理器开始渲染一个瓦片时，其必需先将帧缓存中的部分内容从共享内存空间中转换到 GPU 中的瓦片内存中，这个过程叫做 logical buffer load ，为了避免不必要的时间和电量的消耗，应先调用 glClear 函数清空前一帧缓存的数据内容。当 GPU 结束了一个瓦片的渲染，其必需将瓦片像素数据写回共享内存中，这个转换过程叫做 logical buffer store 。这个过程同样消耗资源，所以除了需要显示在屏幕上的颜色渲染数据必需要写回共享内存外，其他与帧缓存相关联的数据会在下一个帧渲染时重新生成，所以不必进行保存。对于 OpenGL ES 而言，其会自动保存这些缓存到共享内存，可以调用 glInvalidateFramebuffer（OpenGL ES 3.0）或 glDiscardFramebufferEXT（OpenGL ES 1.1～2.0）函数明确废弃这些缓存。当渲染目标发生切换时，logical buffer load 和 store 步骤也会重新执行，所以对于同一个目标的渲染应放在一起进行，尽量避免反复切换目标。
+
+当 TBDR 图形处理器使用深度值缓存数据自动处理整个场景的隐藏界面消除操作时，需要确保只有一个片段着色器是有效的。并且，当颜色混合、透明度测试有效或片段着色器使用了废弃指令或输出 gl_FlagDepth 变量时，GPU 便无法使用深度缓存数据来判断一个片段是否是可见的来，此时，便需要片段着色器对每一个像素进行计算。这样会增加额外的消耗，所以要尽量避免这些操作。如果无法避免，可以使用下面的方法来减少性能的消耗。
+
+* 根据透明度进行排序，先绘制不透明的对象，在绘制有着色器参与的图形（使用了废弃指令或透明度测试），最后绘制透明度混合的对象。
+* 裁剪空白的区域，以减少片段处理的数据量。
+* 尽早使用废弃指令以减少不必要的计算。
+* 将透明度的值设为 0 ，而不是使用透明度测试或废弃指令来消除像素。
+* 考虑使用 Z-Prepass 策略进行渲染，先用包含要废弃的数据的着色器简单的渲染整个场景，保存到深度缓存中。然后，使用深度测试函数 GL_EQUAL 和灯光渲染器再次渲染整个场景。虽然多通道的渲染相较于单通道的渲染会带来性能上的损耗，但是如果有大量的丢弃性操作，那么这种方式性能更优。
+
+> 上述节约内存和计算资源的对于大型场景的处理有效，但是并不适用于简单场景的情况。
+
+### 减少绘制命令调用
+每当提交数据进行处理时，CPU 都要向图形硬件发送相关的指令，如果频繁调用 glDrawArrays 和 glDrawElements 函数渲染场景，那么 CPU 的性能可能会限制 GPU 的性能发挥，所以减少不必要的绘制命令很有必要。
+
+* 将多个数据合并为一组数据
+* 用纹理中的不同部分组成一个纹理集合
+* 使用一个绘制命令渲染多个类似的对象
+
+instanced drawing commands 可以实现一次绘制函数的调用实现相同顶点数据的多次绘制，而不必耗费 CPU 时间来设置不同实例的相关的绘制参数，如位置偏移、变换矩阵、颜色或纹理坐标等。
+
+如下面的代码，过度的调用绘制函数，导致 CPU 负载过重。
+
+```
+for (x = 0; x < 10; x++) {
+    for (y = 0; y < 10; y++) {
+        glUniform4fv(uniformPositionOffset, 1, positionOffsets[x][y]);
+        glDrawArrays(GL_TRIANGLES, 0, numVertices);
+    }
+}
+```
+要避免使用这种循环方式，首先要使用 glDrawArraysInstanced 和 glDrawElementsInstanced 替换 glDrawArrays 和 glDrawElements 函数，然后为顶点着色器提供绘制每个实例时需要的信息。OpenGL ES 中有两种方式提供相关的信息。
+
+* shader instance ID 策略，每一次顶点着色器运行时，其内建的 gl_InstanceID 变量存储着当前需要绘制的实例标识，通过该值可以计算出所需的信息。
+
+```
+#version 300 es 
+in vec4 position; 
+uniform mat4 modelViewProjectionMatrix;
+ 
+void main()
+{
+    float xOffset = float(gl_InstanceID % 10) * 0.5 - 2.5;
+    float yOffset = float(gl_InstanceID / 10) * 0.5 - 2.5;
+    vec4 offset = vec4(xOffset, yOffset, 0, 0);
+ 
+    gl_Position = modelViewProjectionMatrix * (position + offset);
+}
+```
+
+* instanced arrays 策略，将每个实例的信息保存在顶点数组属性中，着色器需要时可以访问这些信息。
+
+```
+//保存
+#define kMyInstanceDataAttrib 5
+ 
+glGenBuffers(1, &_instBuffer);
+glBindBuffer(GL_ARRAY_BUFFER, _instBuffer);
+glBufferData(GL_ARRAY_BUFFER, sizeof(instData), instData, GL_STATIC_DRAW);
+glEnableVertexAttribArray(kMyInstanceDataAttrib);
+glVertexAttribPointer(kMyInstanceDataAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+glVertexAttribDivisor(kMyInstanceDataAttrib, 1);
+```
+
+```
+#version 300 es
+ 
+layout(location = 0) in vec4 position;
+layout(location = 5) in vec2 inOffset;
+ 
+uniform mat4 modelViewProjectionMatrix;
+ 
+void main()
+{
+    vec4 offset = vec4(inOffset, 0.0, 0.0)
+    gl_Position = modelViewProjectionMatrix * (position + offset);
+}
+```
+
+## 顶点数据的处理
+不管用户提交了那些原始图形以及对图形管线进行了怎样的配置，OpenGL ES 总是要对顶点进行处理。一个顶点数据由一个或多个属性组成，如位置、颜色、法向量或纹理坐标等。在 OpenGL ES 2.0 和 3.0 版本中，可以自由定义相关的属性，但是在 OpenGL ES 1.1 版本中，只能使用由固定的图形管线函数定义的属性。
+
+定义个属性作为向量由一个或多个通道组成，所有属性中包含的通道的数据类型是统一的。当这些属性作为参数被加载到着色器的变量中时，未提供的通道的值采用 OpenGL ES 的默认值，即最后一个通道填充 1 ，其他通道填充 0 。
+
+如果在绘制的过程中，所有的或部分的点共享相同的属性，那么可以定义一个属性常量，将其作为处理点的命令的一部分提交到图形硬件。
+
+对于需要提交大量原始数据进行渲染的应用，应该小心处理顶点数据以及其提交到 OpenGL ES 的方式。
+
+* 应减少顶点的数据量
+* 应减少 OpenGL ES 转换顶点数据到图形硬件之前的预处理过程
+* 应减少拷贝顶点数据到图形硬件中的时间
+* 应减少对每个顶点数据的计算量
+
+### 简化模型
+iOS 中的图形硬件很强大，但是没必要使用过于复杂的模型去显示图形。减少绘制模型时使用的点的数量，就直接减少了顶点的数据量，同时减少了顶点数据的计算量。
+
+* 提供不同细节程度的模型，在运行时根据相机距离物体的距离和显示的尺寸来选择合适的模型。
+* 使用纹理来取代顶点信息的提供。
+* 一些模型通过添加点来改善光照细节或渲染质量，该步骤通常放在对每一个点进行计算的光栅化阶段，但是这样做会增加顶点的数据量和模型的计算量。所以，可以考虑将计算过程放在片段着色阶段，而不是直接添加额外的点。
+
+	* 使用 OpenGL ES 2.0 或之后的版本，顶点着色器的计算结果经图形硬件处理后，传递给片段着色器，这样可以将顶点着色器的负担分给片段着色器一些，避免顶点处理程序被阻塞。
+	* 在 OpenGL ES 1.1 中，可以通过 DOT3 对每个片段进行光照的处理，该过程使用 GL_DOT3_TGB 模式组合包含法向量信息的纹理。
+
+### 避免常量的重复保存
+在整个模型中都要用到的常量，不应该复制到每个顶点数据中，可以设置顶点属性常量，或者保存到着色器的全局变量中。
+
+### 使用最小的数据类型
+当指定属性的通道的大小时，应选择其中最小的数据类型，可以参考下面几条建议：
+
+* 顶点颜色使用 4 个无符号字节（GL_UNSIGNED_BYTE）
+* 纹理坐标使用 2 个或 4 个无符号字节（GL_UNSIGNED_BYTE）或无符号短整型（GL_UNSIGNED_SHORT），不宜将一系列纹理坐标放在一个属性中。
+* 避免使用 GL_FIXED 数据类型，因为其与 GL_FLOAT 数据类型占用相同的内存空间，但是表示的数据范围较小，而且 iOS 设备硬件支持浮点数据快速处理。
+* OpenGL ES 3.0 上下文支持使用更小的数据类型表示更大的范围，如 GL_HALF_FLOAT 和 GL_INT_2_10_10_10_REV 比 GL_FLOAT 占用更小的内存但能够方便精准的表达诸如法向量等属性。
+
+如果指定更小的通道数据类型，需要重新排列顶点数据以避免出错。
+
+### 使用交错的顶点数据
+在使用顶点数据时，其结构可以是一个结构体包含多个数组，也可以是一个数组中包含多个结构体。在 iOS 中，采用第二种方式组织数据。将顶点所有的属性结构体放在一起组成一个数据组，而后每个顶点数据依次排列，这样整个数据区域由多个结构体交错排列，能够更好的利用内存空间。
+
+![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2018/pic-20180117-01.png)
+
+当然，如果存在需要共享的顶点属性数据，或者某个属性数据需要按时刷新，那么，可以将该数据从交错的内存区域中分离出来，单独保存在一个结构体中。
+
+![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2018/pic-20180117-02.png)
+
+### 顶点数据的排列
+自定义顶点数据结构时，需要注意其属性数据的偏移量必需是通道大小的倍数并且必需要是 4 个字节的倍数，否则，当数据被提交到图形硬件进行处理时，系统需要先将数据进行拷贝然后排列成所需的格式，才能进行提交。如下图所示，法向量属性的偏移量为 6 个字节，虽然是通道 2 个字节的倍数，但是不是 4 个字节的倍数，所以要补充 2 个字节。
+
+![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2018/pic-20180117-03.png)
+
+### 使用三角形带批量处理顶点数据
+使用三角形带可以避免重合点的重复计算，降低性能的损耗。如下图，将 9 个点缩减到 5 个点，大大减少了计算量。
+
+![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2018/pic-20180117-04.png)
+
+通常，可以将多个三角形带关联起来进行绘制，但是这也意味着在绘制图形的过程中使用相同的顶点属性和着色器。
+
+在关联两个三角形带时，复制第一个三角形带的最后一个点和第二个三角形带的第一个点，插入到数据中，当数据提交时，相同点构不成三角形会自动忽略。
+
+![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2018/pic-20180117-05.png)
+
+当然，为了更好的性能，最好单独提交三角形带数据，并且为了避免在同一个顶点缓存中多次设置相同顶点的数据，可以单独创建一个索引缓存记录三角形带在内存中的位置，然后使用 glDrawElements 函数进行绘制（合适时，可以使用 glDrawElementsInstanced 或 glDrawRangeElements 函数）。
+
+在 OpenGL ES 3.0 中，可以在索引表中插入极大值来表示一个三角形带的结束，这样便不必重复保存顶点的数据而实现了三角形带的组合。
+
+```
+GLushort indexData[11] = {
+    0, 1, 2, 3, 4,    // triangle strip ABCDE
+    0xFFFF,           // primitive restart index (largest possible GLushort value)
+    5, 6, 7, 8, 9,    // triangle strip FGHIJ
+};
+ 
+// Draw triangle strips
+glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
+glDrawElements(GL_TRIANGLE_STRIP, 11, GL_UNSIGNED_SHORT, 0);
+```
+在提交数据前，可以对顶点和索引进行排序，这样相近的点在一起进行绘制，图形硬件会保存最近的计算的点的结果，可以避免相关信息的重复计算。
+
+### 使用顶点缓存对象
+下面的例子中定义了一个结构体，结构体中包含要传递给顶点着色器的位置和颜色数据。在 DrawModel 函数中，配置了两个属性，最后进行三角形带的渲染。
+
+```
+typedef struct _vertexStruct
+{
+    GLfloat position[2];
+    GLubyte color[4];
+} vertexStruct;
+ 
+void DrawModel()
+{
+    const vertexStruct vertices[] = {...};
+    const GLubyte indices[] = {...};
+ 
+    glVertexAttribPointer(GLKVertexAttribPosition, 2, GL_FLOAT, GL_FALSE,
+        sizeof(vertexStruct), &vertices[0].position);
+    glEnableVertexAttribArray(GLKVertexAttribPosition);
+    
+    glVertexAttribPointer(GLKVertexAttribColor, 4, GL_UNSIGNED_BYTE, GL_TRUE,
+        sizeof(vertexStruct), &vertices[0].color);
+    glEnableVertexAttribArray(GLKVertexAttribColor);
+ 
+    glDrawElements(GL_TRIANGLE_STRIP, sizeof(indices)/sizeof(GLubyte), GL_UNSIGNED_BYTE, indices);
+}
+
+```
+每一次调用这个函数时，都需要将顶点数据拷贝到 OpenGL ES 然后进行转换，再传递给图形硬件。如果反复进行调用，并且顶点数据并没有改变，那么不必要的拷贝及转换操作造成了性能的浪费。为了避免这种情况，应当使用 vertex buffer object (VBO)，OpenGL ES 持有这些内存，并且可以进行预处理，将数据转换为需要的格式，方便图形硬件的访问。
+
+在应用启动时，创建顶点缓存，并将其绑定到当前的图形上下文。
+
+```
+GLuint    vertexBuffer;
+GLuint    indexBuffer;
+ 
+void CreateVertexBuffers()
+{
+ 
+    glGenBuffers(1, &vertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+ 
+    glGenBuffers(1, &indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+ 
+}
+```
+下面的代码对上述的 DrawModel 函数进行了改写，主要的区别在于 glVertexAttribPointer 函数中不在提供指向顶点数组中数据的指针，而是提供顶点缓存的属性偏移量。
+
+```
+void DrawModelUsingVertexBuffers()
+{
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+    glVertexAttribPointer(GLKVertexAttribPosition, 2, GL_FLOAT, GL_FALSE,
+        sizeof(vertexStruct), (void *)offsetof(vertexStruct, position));
+    glEnableVertexAttribArray(GLKVertexAttribPosition);
+    
+    glVertexAttribPointer(GLKVertexAttribColor, 4, GL_UNSIGNED_BYTE, GL_TRUE,
+        sizeof(vertexStruct), (void *)offsetof(vertexStruct, color));
+    glEnableVertexAttribArray(GLKVertexAttribColor);
+ 
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glDrawElements(GL_TRIANGLE_STRIP, sizeof(indices)/sizeof(GLubyte), GL_UNSIGNED_BYTE, (void*)0);
+}
+```
+
+```
+void glVertexAttribPointer( GLuint index, GLint size, 
+								 GLenum type, GLboolean normalized, 
+								 GLsizei stride, const GLvoid *pointer);
+```
+
+* index 指定要修改的顶点属性的索引值
+* size 指定要修改的顶点属性的通道数量。必须为 1、2、3 或者 4。初始值为 4（如 position（x,y,z）有 3 个通道，而颜色（r,g,b,a）有 4 个）。
+* type 指定通道的数据类型（如 GL_BYTE, GL_UNSIGNED_BYTE, GL_SHORT,GL_UNSIGNED_SHORT, GL_FIXED, GL_FLOAT，默认为 GL_FLOAT）。
+* normalized 指定当被访问时，固定点数据值是否应该被归一化（GL_TRUE）或者直接转换为固定点值（GL_FALSE）。
+* stride 指定连续顶点属性之间的偏移量，默认值为 0 表示属性依次排列（其实就是顶点所占内存的大小）。
+* pointer 指定顶点数据中第一个顶点属性的偏移量，默认值为 0 。
+
+### 缓存数据的方式
+在顶点缓存对象中，一个关键的设计是其可以告知 OpenGL ES 数据以何种方式进行存储。在 CreateVertexBuffers  函数中调用了厦门的函数：
+
+```
+glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+```
+其中 GL_STATIC_DRAW 表示存储的内容不会进行修改，这样 OpenGL ES 可以在存储过程中进行优化。除此之外，还有 GL_DYNAMIC_DRAW 值，表示顶点缓存会多次使用，并且存储的内容在渲染循环中会发生改变，而 GL_STREAM_DRAW 则表示缓存区在使用几次后便被遗弃。
+
+当然，在 iOS 系统中，GL_DYNAMIC_DRAW 和 GL_STREAM_DRAW 没什么区别，可以使用 glBufferSubData 函数刷新缓存区数据，但是这会增加系统开销，因为命令缓存区中的命令会被提交并等待提交的命令执行完毕，不过采用双缓存区或多缓存区可以减少性能消耗。
+
+当顶点属性无法统一格式或者某一个属性会不断变更时，应将相关的属性分离出来，创建多个缓存进行存储。如下面的例程，单独定义一个缓存来存储颜色数据，并且使用 GL_DYNAMIC_DRAW 来表明该缓存中的内容是可变的。
+
+```
+typedef struct _vertexStatic
+{
+    GLfloat position[2];
+} vertexStatic;
+ 
+typedef struct _vertexDynamic
+{
+    GLubyte color[4];
+} vertexDynamic;
+ 
+//定义两个缓存，分别存储可变内容和不变的内容
+GLuint    staticBuffer;
+GLuint    dynamicBuffer;
+GLuint    indexBuffer;
+ 
+const vertexStatic staticVertexData[] = {...};
+vertexDynamic dynamicVertexData[] = {...};
+const GLubyte indices[] = {...};
+ 
+void CreateBuffers()
+{
+// Static position data
+    glGenBuffers(1, &staticBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, staticBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(staticVertexData), staticVertexData, GL_STATIC_DRAW);
+ 
+// Dynamic color data
+// While not shown here, the expectation is that the data in this buffer changes between frames.
+    glGenBuffers(1, &dynamicBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, dynamicBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(dynamicVertexData), dynamicVertexData, GL_DYNAMIC_DRAW);
+ 
+// Static index data
+    glGenBuffers(1, &indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+}
+ 
+void DrawModelUsingMultipleVertexBuffers()
+{
+    glBindBuffer(GL_ARRAY_BUFFER, staticBuffer);
+    glVertexAttribPointer(GLKVertexAttribPosition, 2, GL_FLOAT, GL_FALSE,
+        sizeof(vertexStruct), (void *)offsetof(vertexStruct, position));
+    glEnableVertexAttribArray(GLKVertexAttribPosition);
+ 
+    glBindBuffer(GL_ARRAY_BUFFER, dynamicBuffer);
+    glVertexAttribPointer(GLKVertexAttribColor, 4, GL_UNSIGNED_BYTE, GL_TRUE,
+        sizeof(vertexStruct), (void *)offsetof(vertexStruct, color));
+    glEnableVertexAttribArray(GLKVertexAttribColor);
+ 
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glDrawElements(GL_TRIANGLE_STRIP, sizeof(indices)/sizeof(GLubyte), GL_UNSIGNED_BYTE, (void*)0);
+}
+```
+
+### 使用顶点数组对象管理顶点数组状态的改变
+在上述的 DrawModelUsingMultipleVertexBuffers 函数中，启用了一些属性，绑定了一些顶点缓存对象并且进行了一些配置。但是每一帧的渲染调用这个函数时，其中的许多图形管线的设置都进行了重复的设置，这是对性能的浪费。使用顶点数组对象来保存整个属性配置，这样可以重复使用配置参数，提高渲染的效率。
+
+如下图，用两个顶点数组对象保存了两个不相互影响的顶点属性配置，并且配置的不同属性可以保存在一个顶点缓存区中或多个缓存区中。
+
+![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2018/pic-20180117-06.png)
+
+实现上图的例程如下：
+
+```
+void ConfigureVertexArrayObject()
+{
+    // Create and bind the vertex array object.
+    glGenVertexArrays(1,&vao1);
+    glBindVertexArray(vao1);
+    
+    // Configure the attributes in the VAO.
+    glBindBuffer(GL_ARRAY_BUFFER, vbo1);
+    glVertexAttribPointer(GLKVertexAttribPosition, 3, GL_FLOAT, GL_FALSE,
+        sizeof(staticFmt), (void*)offsetof(staticFmt,position));
+    glEnableVertexAttribArray(GLKVertexAttribPosition);
+    glVertexAttribPointer(GLKVertexAttribTexCoord0, 2, GL_UNSIGNED_SHORT, GL_TRUE,
+        sizeof(staticFmt), (void*)offsetof(staticFmt,texcoord));
+    glEnableVertexAttribArray(GLKVertexAttribTexCoord0);
+    glVertexAttribPointer(GLKVertexAttribNormal, 3, GL_FLOAT, GL_FALSE,
+        sizeof(staticFmt), (void*)offsetof(staticFmt,normal));
+    glEnableVertexAttribArray(GLKVertexAttribNormal);
+ 
+    glBindBuffer(GL_ARRAY_BUFFER, vbo2);
+    glVertexAttribPointer(GLKVertexAttribColor, 4, GL_UNSIGNED_BYTE, GL_TRUE,
+        sizeof(dynamicFmt), (void*)offsetof(dynamicFmt,color));
+    glEnableVertexAttribArray(GLKVertexAttribColor);
+ 
+    // Bind back to the default state.
+    glBindBuffer(GL_ARRAY_BUFFER,0);
+    glBindVertexArray(0); 
+}
+```
+在上面的例程中，生成的顶点数组对象被绑定到当前上下文中，而生成的顶点配置属性则是保存在顶点数组对象中，而不是绑定到上下文中。当顶点数组对象设置完成后，不应在运行时进行修改，如果有需要，应创建多个顶点数组对象。如在双缓存应用中，配置一组顶点数组对象用来渲染奇数帧，另一组用来渲染偶数帧，当然所使用的顶点数组对象要连接到待渲染的帧的顶点缓存对象中。
+
+### 快速渲染的缓存映射
+在 OpenGL ES 中，一个难点是实现动态资源的快速渲染。如在渲染每一帧时，顶点数据都发生了变化，那么如何管理数据在应用和 OpenGL ES 之间的传递是平衡 CPU 和 GPU 性能的关键。传统技术，如 glBufferSubData 函数，其会强制 GPU 等待数据传入，即使 GPU 可以从当前缓冲区中获取所需的渲染数据，所以这种做法并不高效。
+
+在渲染帧频繁的应用中，同时想要修改顶点缓存中的内容，但是如果上一帧的渲染命令正在执行，GPU 正在使用中，此时想要修改缓存准备下一帧的内容，那么，CPU 会被阻塞，直到 GPU 执行完毕。对于这种情况，可以手动同步 CPU 和 GPU 。通过调用 glMapBufferRange 函数来获取 OpenGL ES 的内存范围，任何写入新的数据。另外，该函数还可以将缓冲区中的数据保存到应用缓存中，还允许使用同步对象对缓存进行异步修改。
+
+````
+GLsync fence;
+GLboolean UpdateAndDraw(GLuint vbo, GLuint offset, GLuint length, void *data) {
+    GLboolean success;
+ 
+    // Bind and map buffer.
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    void *old_data = glMapBufferRange(GL_ARRAY_BUFFER, offset, length,
+        GL_MAP_WRITE_BIT | GL_MAP_FLUSH_EXPLICIT_BIT |
+        GL_MAP_UNSYNCHRONIZED_BIT );
+ 
+    // Wait for fence (set below) before modifying buffer.
+    glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
+ 
+    // Modify buffer, flush, and unmap.
+    memcpy(old_data, data, length);
+    glFlushMappedBufferRange(GL_ARRAY_BUFFER, offset, length);
+    success = glUnmapBuffer(GL_ARRAY_BUFFER);
+ 
+    // Issue other OpenGL ES commands that use other ranges of the VBO's data.
+ 
+    // Issue draw commands that use this range of the VBO's data.
+    DrawMyVBO(vbo);
+ 
+    // Create a fence that the next frame will wait for.
+    fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    return success;
+}
+```
+在上面的例程中，在最后使用 glFenceSync 函数标记了一个同步点，每一次调用该函数时，都会调用 glClientWaitSync 函数对同步点进行校验。如果在新的渲染周期中，上一周期提交的命令 GPU 还未执行完毕，那么就阻塞 CPU 进行等待，如果已经执行完毕，则可以修改缓冲区中的数据。
+
 
 
 
