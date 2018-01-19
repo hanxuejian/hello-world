@@ -475,7 +475,7 @@ void main()
 }
 ```
 
-## 顶点数据的处理
+## 顶点数据的使用
 不管用户提交了那些原始图形以及对图形管线进行了怎样的配置，OpenGL ES 总是要对顶点进行处理。一个顶点数据由一个或多个属性组成，如位置、颜色、法向量或纹理坐标等。在 OpenGL ES 2.0 和 3.0 版本中，可以自由定义相关的属性，但是在 OpenGL ES 1.1 版本中，只能使用由固定的图形管线函数定义的属性。
 
 定义个属性作为向量由一个或多个通道组成，所有属性中包含的通道的数据类型是统一的。当这些属性作为参数被加载到着色器的变量中时，未提供的通道的值采用 OpenGL ES 的默认值，即最后一个通道填充 1 ，其他通道填充 0 。
@@ -777,6 +777,352 @@ GLboolean UpdateAndDraw(GLuint vbo, GLuint offset, GLuint length, void *data) {
 }
 ```
 在上面的例程中，在最后使用 glFenceSync 函数标记了一个同步点，每一次调用该函数时，都会调用 glClientWaitSync 函数对同步点进行校验。如果在新的渲染周期中，上一周期提交的命令 GPU 还未执行完毕，那么就阻塞 CPU 进行等待，如果已经执行完毕，则可以修改缓冲区中的数据。
+
+## 纹理数据的使用
+通常，为了显示更多的细节，让用户有良好的体验，纹理数据在所有数据中占用比重最大，所以处理好纹理数据对应用性能很重要。下面给出一些处理纹理的注意项：
+
+* 在应用启动之初创建纹理数据，并且在渲染循环过程中，不应对其进行修改
+* 减少纹理所占用的内存空间
+* 将小的纹理图形汇集成一个纹理集合
+* 使用 mipmap（一种纹理映射技术）减少获取纹理数据所需的带宽
+* 一次传递多个纹理数据给纹理操作过程
+
+### 加载纹理数据
+创建和加载纹理数据和消耗性能，所以应避免修改在初始化时创建加载的纹理数据。当然，对于必需要修改纹理的情况，修改过程也应放在对帧的渲染之前或之后。
+
+在 GLKit 框架中，使用 GLKTextureLoader 类可以从不同的资源中，如文件、链接、内存、图像等，创建纹理。该纹理信息保存在类 GLKTextureInfo 实例对象中，可以用于多种任务，如绑定到当前上下文中进行渲染。
+
+如下面的例程中，从一个文件中加载纹理数据，并且绑定到当前上下文中。
+
+```
+GLKTextureInfo *spriteTexture;
+NSError *theError;
+ 
+NSString *filePath = [[NSBundle mainBundle] pathForResource:@"Sprite" ofType:@"png"]; // 1
+ 
+spriteTexture = [GLKTextureLoader textureWithContentsOfFile:filePath options:nil error:&theError]; // 2
+glBindTexture(spriteTexture.target, spriteTexture.name); // 3
+```
+但是要注意的是，GLKTextureInfo 实例对象并不属于 OpenGL ES 的纹理对象，使用结束后，要调用 glDeleteTextures 函数进行释放。
+
+### 减少纹理的内存使用
+使用纹理能够显示更多的细节，但是减少内存的使用也会降低渲染结果的质量，所以两者需要一个平衡。
+
+* 对纹理进行压缩，在 iOS 中，OpenGL ES 支持多种压缩格式，如在 GL_IMG_texture_compression_pvrtc 扩展中实现的 PowerVR Texture Compression 格式，其可以把一个像素压缩到 4 位或者 2 位，对于 32 位的纹理数据就是 1/8 或 1/16 的压缩率。另外，OpenGL ES 还支持 ETC2 和 EAC 格式的压缩。
+
+* 当无法对纹理数据进行压缩时，可以考虑使用低精度的颜色数据，如 RGB565 、RGBA5551 、RGBA4444 格式所需要的内存比 RGBA8888 格式所需内存要少一半。
+
+* 鉴于 iOS 设备屏幕尺寸本就不大，所以减小纹理的尺寸也可以减少内存的消耗。
+
+### 纹理图册
+如果使用许多小的纹理进行渲染，每一次修改上下文状态绑定纹理数据都会耗费时间，所以可以将这些纹理组合成为一个大的纹理，在使用过程中，根据纹理坐标来获取纹理图册中需要的小的纹理，这样做的好处不仅是不必频繁修改上下文中绑定的纹理数据，而且某些情况还可以将多个绘制操作整合到一个操作中。
+
+但是使用纹理图册也有一些限制：
+
+* 当使用 GL_REPEAT（当纹理超出渲染边界时，仍然复制纹理）参数时，不可以使用纹理图册。
+* 在使用图册时，需要在各个小的纹理之间进行填充，防止使用时获取到其他纹理的文素。
+* 纹理图册本身是一个纹理，其受制于 OpenGL ES 所设置的纹理最大值及其他纹理属性。
+
+使用 Xcode 开发工具可以创建纹理图册，虽然该特性是为 SpriteKit 框架设计的，但在设计应用时仍可使用其创建的文件。在工程中创建的 .atlas 文件夹在最终发布的应用包中，会对应到 .atlasc 文件夹，其中包含了编译后纹理图片资源，以及一个记录着图片信息的 .plist 文件，根据该文件中的信息可以计算出纹理的具体坐标，从而用于 OpenGL ES 的渲染。
+
+### 减少内存带宽的使用
+除了用来绘制 2D 图像的纹理外，其他纹理都应根据不同的视点距离生成不同层级的纹理资源。这样虽然会增加额外的内存消耗，但是会消除伪影并且改善了图片质量。更为重要的是，对纹理进行了取样后，图形硬件需要从内存中读取的纹素减少，提高了性能。
+
+在使用纹理进行贴图的过程中，GL_LINEAR_MIPMAP_LINEAR 参数可以得到较好的质量，但是需要从内存中获取更多的纹素，所以可以考虑使用 GL_LINEAR_MIPMAP_NEAREST 过滤模式牺牲图片质量来换取更好的性能。
+
+当结合 mipmap 技术和纹理图册时，使用 TEXTURE_MAX_LEVEL 参数来控制纹理的过滤。
+
+### 多纹理使用
+在使用多个纹理进行渲染时，向绘制模型每一次传递一个纹理，不仅需要重新对图形管线进行配置，而且要重新处理顶点信息，帧中的每个像素数据都要读回内存进行处理，所以每一次渲染，应当传递尽可能多的纹理单元，OpenGL ES 在 iOS 设备上支持多少个纹理单元，可以通过调用 glGetIntegerv 函数，传递 GL_MAX_TEXTURE_UNITS 参数获取。
+
+如果必需对每一个纹理单独传递，那么应确保每一次传递纹理参数时，位置数据保持不变。并且，在第二次及之后的传递参数时，调用 glDepthFunc 函数传递参数 GL_EQUAL 对模型表面的像素进行测试。
+
+## 着色器的使用
+着色器虽然灵活性较高，但是如果不能正确使用或进行了太多的计算，也会导致渲染性能的降低。
+
+### 着色程序的编译和链接
+创建着色程序比改变 OpenGL ES 的状态更消耗系统资源，所以在应用加载时，初始化所有的着色程序，在使用时，调用 glUseProgram 函数可以方便的进行切换。
+
+在发布应用时，应避免对着色程序日志信息的读取，因为这会消耗性能并且这些信息只对开发人员有意义。
+
+```
+#ifdef DEBUG
+// Check the status of the compile/link after calling glCompileShader, glLinkProgram, or similar
+glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &logLen);
+if(logLen > 0) {
+    // Show any errors as appropriate
+    glGetProgramInfoLog(prog, logLen, &logLen, log);
+    fprintf(stderr, “Prog Info Log: %s\n”, log);
+}
+#endif
+```
+类似的，可以在调试代码中调用 glValidateProgram 函数，对当前的 OpenGL ES 上下文状态进行检查以检查可能的错误。
+
+### 分离着色着色程序
+在应用中，通常有多个顶点和片段着色程序，两者之间可以相互重用。但是，OpenGL ES 要求顶点着色程序和片段着色程序要链接到一个单独的着色程序中，所以这种混合及匹配的着色程序会导致程序的膨胀，从而增加了着色程序的编译和链接时间。
+
+在 OpenGL ES 2.0 和 3.0 版本的 EXT_separate_shader_objects 扩展程序中，提供了分别单独编译顶点着色程序和片段着色程序的函数，并且在渲染时在讲他们进行混合匹配。
+
+```
+- (void)loadShaders
+{
+    const GLchar *vertexSourceText = " ... vertex shader GLSL source code ... ";
+    const GLchar *fragmentSourceText = " ... fragment shader GLSL source code ... ";
+ 
+    // Compile and link the separate vertex shader program, then read its uniform variable locations
+    _vertexProgram = glCreateShaderProgramvEXT(GL_VERTEX_SHADER, 1, &vertexSourceText);
+    _uniformModelViewProjectionMatrix = glGetUniformLocation(_vertexProgram, "modelViewProjectionMatrix");
+    _uniformNormalMatrix = glGetUniformLocation(_vertexProgram, "normalMatrix");
+ 
+    // Compile and link the separate fragment shader program (which uses no uniform variables)
+    _fragmentProgram =  glCreateShaderProgramvEXT(GL_FRAGMENT_SHADER, 1, &fragmentSourceText);
+ 
+    // Construct a program pipeline object and configure it to use the shaders
+    glGenProgramPipelinesEXT(1, &_ppo);
+    glBindProgramPipelineEXT(_ppo);
+    glUseProgramStagesEXT(_ppo, GL_VERTEX_SHADER_BIT_EXT, _vertexProgram);
+    glUseProgramStagesEXT(_ppo, GL_FRAGMENT_SHADER_BIT_EXT, _fragmentProgram);
+}
+ 
+- (void)glkView:(GLKView *)view drawInRect:(CGRect)rect
+{
+    // Clear the framebuffer
+    glClearColor(0.65f, 0.65f, 0.65f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+ 
+    // Use the previously constructed program pipeline and set uniform contents in shader programs
+    glBindProgramPipelineEXT(_ppo);
+    glProgramUniformMatrix4fvEXT(_vertexProgram, _uniformModelViewProjectionMatrix, 1, 0, _modelViewProjectionMatrix.m);
+    glProgramUniformMatrix3fvEXT(_vertexProgram, _uniformNormalMatrix, 1, 0, _normalMatrix.m);
+ 
+    // Bind a VAO and render its contents
+    glBindVertexArrayOES(_vertexArray);
+    glDrawElements(GL_TRIANGLE_STRIP, _indexCount, GL_UNSIGNED_SHORT, 0);
+}
+```
+
+### 硬件对着色程序的限制
+OpenGL ES 会限制着色程序中使用的变量类型精度，当使用的变量精度超过限制时，程序编译链接出错，并且该错误不会反馈给软件层，所以应使用判断着色程序的编译和链接是否成功。
+
+精度细节信息被加入到 GLSL ES 语言中，这样就可以限制着色程序中变量的精度以适用于嵌入式设备中的硬件。每个着色器都要指定默认的精度，同时，每个着色器中的变量都可以覆盖默认的精度。虽说 OpenGL ES 并不强求提供精度细节，但是提供精度可以更高效的生成着色器。
+
+但是需要注意的是，精度细节对变量的范围限制并不是强制的，所以不能认为数据始终是在假设的范围内。
+
+* 当不确定时，使用高精度。
+* 在 0～1 范围内的颜色变量通常使用低精度。
+* 位置数据通常使用高精度。
+* 在光照计算时使用的标量和矢量通常使用中等精度。
+* 在减少精度后，应测试应用效果是否符合预期。
+
+如下面的例程，默认使用高精度，但是输出的颜色结果使用了低精度，因为对于颜色变量而言，高精度是不必要的。
+
+```
+precision highp float; // Defines precision for float and float-derived (vector/matrix) types.
+uniform lowp sampler2D sampler; // Texture2D() result is lowp.
+varying lowp vec4 color;
+varying vec2 texCoord;   // Uses default highp precision.
+ 
+void main()
+{
+    gl_FragColor = color * texture2D(sampler, texCoord);
+}
+```
+
+> 着色程序中的变量的实际精度与设备相关。
+
+### 向量计算
+并不是所有的图形处理器中都包含有矢量处理器，很多图形处理器使用普通数据处理程序处理矢量，注意处理过程中的顺序可以提高计算效率，不管是使用矢量处理程序还是标量处理程序。
+
+如下面的计算，如果使用矢量处理器，那么 v1 矢量的 4 个元素同时进行乘积计算，而相同的操作在标量处理器中需要进行 8 次乘积计算。
+```
+highp float f0, f1;
+highp vec4 v0, v1;
+v0 = (v1 * f0) * f1;
+```
+而如果将上面的操作变更计算顺序，那么使用标量处理器处理时，只要 5 次计算即可得到相同的结果。
+
+```
+highp float f0, f1;
+highp vec4 v0, v1;
+v0 = v1 * (f0 * f1);
+```
+另外，还可以指定需要的矢量元素来跳过不必要的计算。
+
+```
+highp vec4 v0;
+highp vec4 v1;
+highp vec4 v2;
+v2.xz = v0 * v1;
+```
+
+### 使用全局变量或常量
+如果可以在着色器外计算需要的数据值，那么就不要放在着色器中进行计算，而是使用全局变量或常量，传递给着色器使用。
+
+### 谨慎使用分支指令
+在着色器中不鼓励使用分支，因为这会降低 3D 图形处理器的平行处理能力，即使在 OpenGL ES 3.0 中对此进行了优化。可以将分支程序拆分为多个着色程序，根据不同的条件调用不同的着色程序处理相应的任务。这种折中的办法也要视情况而定，对于不得不使用分支的着色器，可以参考下面的建议：
+
+* 性能最优：使用常量对编译的着色器进行分支
+* 性能适中：使用全局变量对编译的着色器进行分支
+* 性能堪忧：使用在着色程序中的计算结果对编译的着色器进行分支
+
+### 消除循环
+下面两个代码片段效果相同，但是循环分支耗能多而且不如使用矢量效率高。
+```
+int i;
+float f;
+vec4 v;
+ 
+for(i = 0; i < 4; i++)
+    v[i] += f;
+```
+```
+float f;
+vec4 v;
+v += f;
+```
+
+### 避免在着色器中计算数组索引
+在着色器中访问临时数组或计算数组索引，不如直接使用常量数组或全局数组索引。
+
+### 动态纹理查询
+动态纹理查询，亦称为 dependent texture reads ，发生在片段着色器计算纹理坐标时而不是使用固定不变的纹理坐标参数。对于支持动态纹理查询的硬件，使用 OpenGL ES 3.0 中的函数进行查询时并不耗费性能，但是对于其他的设备则会延迟纹素数据的加载，降低性能。如果着色器不动态计算纹理坐标，那么图形硬件可能会在着色器执行之前加载纹素数据，以避免访问内存的时延。
+
+下面给出了一个在片段着色器中计算纹理坐标的例子，这个计算过程也可以放在顶点着色器中，然后直接使用计算的结果，可以避免 dependent texture read 。
+
+```
+varying vec2 vTexCoord;
+uniform sampler2D textureSampler;
+ 
+void main()
+{
+    vec2 modifiedTexCoord = vec2(1.0 - vTexCoord.x, 1.0 - vTexCoord.y);
+    gl_FragColor = texture2D(textureSampler, modifiedTexCoord);
+}
+```
+
+### 可编程的混色
+传统的 OpenGL 和 OpenGL ES 技术提供一个固定的函数用于混色步骤。在进行绘制之前，从一系列参数中选定一个混色操作，当片段着色器计算出相应像素点的颜色值时，OpenGL ES 从目标帧缓存中读取相应的像素值并用预先指定的混色操作将两个颜色值相混合得到最终的颜色值。
+
+![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2018/pic-20180119-01.png)
+
+但是在 iOS 6.0 及之后的系统中， EXT_shader_framebuffer_fetch 扩展中提供了可编程的混色方法。不同于提供颜色，在片段着色器中，可以读取帧中相应的像素颜色值，选用任意的算法对其进行处理，得到最终的颜色输出。
+
+![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2018/pic-20180119-02.png)
+
+在这个扩展中，还提供了一些其他的渲染技术：
+
+* 添加了混色模式，可以自定义 GLSL ES 函数实现颜色的混合，而这在固定函数混色阶段是无法实现的。
+* 后期处理，当渲染一个场景之后，可以读取当前片段着色器中的颜色中的一个通道值。这种技术可以实现整个场景的灰度转换。
+* 非颜色片段处理，帧缓存中可能含有非颜色数据，如延期着色算法用多个渲染目标保存深度和标量信息，在片段着色器中可以读取这些数据生成用于其他目标渲染的颜色。
+
+当然，一些特性的实现不一定非使用 EXT_shader_framebuffer_fetch 扩展函数不可，但是使用扩展函数性能更好。但是对于不同的 OpenGL ES Shading Language（GLSL ES）版本，代码实现方式有些不同。
+
+在 GLSL ES 1.0 中使用帧缓存数据，需要使用内置的 gl_FragColor 变量保存片段着色器的输出结果，使用内置的 gl_LastFragData 变量读取帧缓存数据。
+
+```
+#extension GL_EXT_shader_framebuffer_fetch : require
+ 
+#define kBlendModeDifference 1
+#define kBlendModeOverlay    2
+#define BlendOverlay(a, b) ( (b<0.5) ? (2.0*b*a) : (1.0-2.0*(1.0-a)*(1.0-b)) )
+ 
+uniform int blendMode;
+varying lowp vec4 sourceColor;
+ 
+void main()
+{
+    lowp vec4 destColor = gl_LastFragData[0];
+    if (blendMode == kBlendModeDifference) {
+        gl_FragColor = abs( destColor - sourceColor );
+    } else if (blendMode == kBlendModeOverlay) {
+        gl_FragColor.r = BlendOverlay(sourceColor.r, destColor.r);
+        gl_FragColor.g = BlendOverlay(sourceColor.g, destColor.g);
+        gl_FragColor.b = BlendOverlay(sourceColor.b, destColor.b);
+        gl_FragColor.a = sourceColor.a;
+    } else { // normal blending
+        gl_FragColor = sourceColor;
+    }
+}
+```
+
+在 GLSL ES 3.0 中可以使用 **inout** 声明变量来保存片段着色器执行后的帧缓存数据。
+
+```
+#version 300 es
+#extension GL_EXT_shader_framebuffer_fetch : require
+ 
+layout(location = 0) inout lowp vec4 destColor;
+ 
+void main()
+{
+    lowp float luminance = dot(vec3(0.3, 0.59, 0.11), destColor.rgb);
+    destColor.rgb = vec3(luminance);
+}
+```
+
+### 在顶点着色器中使用纹理
+在 iOS 7.0 及其之后，顶点着色器能够读取不同的纹理单元，这样在顶点处理过程中，就增大了可读取的内存范围。同时，使得其他一些渲染技术的性能大大改善了。
+
+* 修改位置映射，如使用默认的顶点位置绘制网格，然后从顶点着色器中读取纹理来改变每个顶点的位置。
+* 实例绘制，为降低 CPU 的负载，将相似的对象渲染集合到一条绘制命令中，但是为每个实例提供相应的信息至关重要，此时，可以使用纹理提供信息。如在绘制城市风景时，顶点数据中只要有简单的立方体数据。顶点着色器通过使用 gl_InstanceID 变量从样本纹理中获取相关的变化矩阵、颜色值、纹理坐标偏移量和高度等信息来实现每个建筑的渲染。
+
+```
+attribute vec2 xzPos;
+ 
+uniform mat4 modelViewProjectionMatrix;
+uniform sampler2D heightMap;
+ 
+void main()
+{
+    // Use the vertex X and Z values to look up a Y value in the texture.
+    vec4 position = texture2D(heightMap, xzPos);
+    // Put the X and Z values into their places in the position vector.
+    position.xz = xzPos;
+ 
+    // Transform the position vector from model to clip space.
+    gl_Position = modelViewProjectionMatrix * position;
+}
+```
+
+当然，也可以使用全局数组或全局缓存对象为顶点着色器提供大量数据，但使用纹理不只能存储更多数据，还可以通过位置偏移来修改存储的数据，并且使用 GPU 处理纹理数据。但是，在使用顶点纹理时，需要在运行时查看 MAX_VERTEX_TEXTURE_IMAGE_UNITS 的值，来判断顶点纹理是否可以使用或可以使用的纹理单元数量。
+
+## 并发行与 OpenGL ES
+任务的并发，有利于计算机性能的使用，使得任务能够尽可能快的完成并给用户反馈。在 OpenGL ES 应用中，也有特殊形式的并发，即应用处理在 CPU 中进行，同时，OpenGL ES 的相关处理在 GPU 中进行。在设计有良好的 CPU-GPU 并行性的 OpenGL ES 应用需要将任务分解为多个子任务，并且要注意哪些任务可以安全的并行执行，哪些任务只能线形执行，哪些任务需要竞争资源，又有哪些任务的输出是其他任务的输入。
+
+创建多线程应用，需要额外的工作，不论设计、实现还是测试。线程越多，任务就越复杂越繁重，所以在使用多线程技术开发 OpenGL ES 应用之前，应先单线程环境中实现 CPU 和 GPU 的良好并行。
+
+当应用符合下面两点时，可以使用多线程技术对应用进行优化：
+
+* 应用中需要执行许多与 OpenGL ES 渲染模型无关的任务。
+* 当发现 OpenGL ES 渲染过程在 CPU 中消耗的时间过多时，可以考虑将任务分解由多线程执行。
+
+当 CPU 闲置而 GPU 繁忙或者两者都很空闲，那么没有必要使用多线程进行优化了。
+
+### 一个线程一个上下文
+在 iOS 中每一个线程只能有一个当前上下文，当进行渲染时，与线程绑定的当前上下文的状态及关联对象会发生变动。在多线程应用中，不同的线程可以绑定同一个上下文，但是如果不同的线程同时对这个上下文做了修改，那么结果将不可预测，可能应用直接崩溃，也可能会进行错误的渲染。所以这种情况，必需要使用同步锁对所有的线程进行同步，才可以调用 OpenGL ES 的函数，不过，类似 glFinish 的函数，本身就有阻塞的效果，可以不必对线程进行同步。
+
+GCD 和 NSoperationQueue 对象执行任务时，使用自动生成的线程或复用已存在的线程，总之，我们需要保证下面几点：
+
+* 执行 OpenGL ES 命令时，每个任务必需设置上下文。
+* 两个或多个任务使用相同的上下文，必不能发生在同一个时刻。
+* 每个任务结束之前，必需清空线程绑定的上下文。
+
+### 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
