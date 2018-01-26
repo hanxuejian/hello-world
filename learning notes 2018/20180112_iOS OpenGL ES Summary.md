@@ -74,12 +74,12 @@ GLKView 类为 OpenGL ES 上下文提供了渲染结果的显示视图，在创�
 * 渲染离屏图像，与帧缓存相关联的所有配置都以渲染缓存的形式存在。
 
 	1. 创建帧缓存并绑定
-		 
-		 ```
-		 GLuint framebuffer;
-		 glGenFramebuffers(1,&framebuffer);
-		 glBindFramebuffer(GL_FRAMEBUFFER, framebuffer); 
-		 ```
+ 
+		```
+		GLuint framebuffer;
+		glGenFramebuffers(1,&framebuffer);
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer); 
+		```
 
 	2. 创建颜色渲染缓存并绑定
 		
