@@ -298,29 +298,29 @@ OpenGL ES 的使用一般分为两种结构，一种是客户端-服务器结构
 
 * OpenGL ES 3.0
 
-从 iOS 7 开始，可以使用 OpenGL ES 3.0 版本，该版本相较于以前的版本提供了一些新的特性。详细信息可以[参见官方网站](http://www.khronos.org/registry/gles/)。
-
-在 3.0 版本中，可以同时渲染多个与帧缓存相关联的目标，即将片段着色器的计算结果输出到多个目标缓存中。
-
-```
-//为帧缓存关联多个颜色缓存目标
-glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _colorTexture, 0);
-glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, _positionTexture, 0);
-glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, _normalTexture, 0);
-glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, _depthTexture, 0);
- 
-//渲染指定的关联目标
-GLenum targets[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
-glDrawBuffers(3, targets);
-```	
+	从 iOS 7 开始，可以使用 OpenGL ES 3.0 版本，该版本相较于以前的版本提供了一些新的特性。详细信息可以[参见官方网站](http://www.khronos.org/registry/gles/)。
+	
+	在 3.0 版本中，可以同时渲染多个与帧缓存相关联的目标，即将片段着色器的计算结果输出到多个目标缓存中。
+	
+	```
+	//为帧缓存关联多个颜色缓存目标
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _colorTexture, 0);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, _positionTexture, 0);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, _normalTexture, 0);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, _depthTexture, 0);
+	 
+	//渲染指定的关联目标
+	GLenum targets[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+	glDrawBuffers(3, targets);
+	```	
 
 * OpenGL ES 2.0
 
-OpenGL ES 2.0 中通过可编程着色器来实现图形管线的可变性，适用于当前所有的 iOS 设备，并且在 OpenGL ES 3.0 中引入的特性可以通过 2.0 版本中的扩展函数实现，所以两者可以相互兼容。
+	OpenGL ES 2.0 中通过可编程着色器来实现图形管线的可变性，适用于当前所有的 iOS 设备，并且在 OpenGL ES 3.0 中引入的特性可以通过 2.0 版本中的扩展函数实现，所以两者可以相互兼容。
 
 * OpenGL ES 1.1
 
-OpenGL ES 1.1 提供最基本的固定图形管线。
+	OpenGL ES 1.1 提供最基本的固定图形管线。
 
 ### 设计
 要实现高性能的 OpenGL ES 应用，需要注意两点，一是注意图形管线各个步骤的并行推进，另一个是注意应用与图形硬件间的数据流动。
@@ -363,7 +363,7 @@ OpenGL ES 1.1 提供最基本的固定图形管线。
 
 通过调用 glGetError 函数可以获取调用 OpenGL ES API 时产生的错误，或者其他性能问题，但是频繁的调用该函数本就会降低应用的性能，所以在调优过程中，应使用工具直接查看其记录的错误，还可以添加 OpenGL ES Error 断点，当 OpenGL ES 报错时，程序会自动停止。
 
-为了调试的可读性，可以通过 **EXT_debug_marker** 和 **EXT_debug_label** 扩展将一组相关的绘制指令添加到一个逻辑分组中并且可以为 OpenGL ES 对象添加一个可读的名称。
+为了调试的可读性，可以通过 **`EXT_debug_marker`** 和 **`EXT_debug_label`** 扩展将一组相关的绘制指令添加到一个逻辑分组中并且可以为 OpenGL ES 对象添加一个可读的名称。
 
 使用 **glPushGroupMarkerEXT** 函数定义一个命令组的开始，并提供组名，然后后面添加相关的指令函数，最后使用 **glPopGroupMarkerEXT** 函数结束一个组，组与组之间可以进行嵌套。当使用 GLKView 进行绘制时，所有的指令函数都放在 **Rendering** 中。
 
@@ -861,7 +861,7 @@ if(logLen > 0) {
 ### 分离着色程序
 在应用中，通常有多个顶点和片段着色程序，两者之间可以相互重用。但是，OpenGL ES 要求顶点着色程序和片段着色程序要链接到一个单独的着色程序中，所以这种混合及匹配的着色程序会导致程序的膨胀，从而增加了着色程序的编译和链接时间。
 
-在 OpenGL ES 2.0 和 3.0 版本的 EXT_separate_shader_objects 扩展程序中，提供了分别单独编译顶点着色程序和片段着色程序的函数，并且在渲染时再将他们进行混合匹配。
+在 OpenGL ES 2.0 和 3.0 版本的 `EXT_separate_shader_objects` 扩展程序中，提供了分别单独编译顶点着色程序和片段着色程序的函数，并且在渲染时再将他们进行混合匹配。
 
 ```
 - (void)loadShaders
