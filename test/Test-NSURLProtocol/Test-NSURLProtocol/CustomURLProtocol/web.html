@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        
+        <meta charset="UTF-8">
+            
+        <script type='text/javascript'>
+            
+            this.saveValue = function() {
+                
+                var content = document.getElementById("content").value;
+
+                handle = new XMLHttpRequest();
+                handle.open('POST', 'customprotocol://' + content, false);
+                
+                handle.setRequestHeader('value', content);
+                return handle.send(null);
+            };
+            
+        </script>
+
+    </head>
+    
+    <body>
+    
+        <a>this is a test page.</a>
+    
+        <br>
+    
+        <input type="text" size="30" id="content">
+        
+        <input type="submit" value="提示" onclick="saveValue()">
+        
+        
+    </body>
+
+</html>
