@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        
+        <meta charset="UTF-8">
+
+    </head>
+    
+    <body>
+    
+        <a>this is a test page.</a>
+    
+        <br>
+    
+        <input type="text" size="30" id="content">
+        
+        <input type="submit" value="show" onclick="saveValue('test1','test2')">
+            
+        <input type="submit" value="clear" onclick="CustomSave.saveValue('hello','world')">
+        
+        
+    </body>
+    
+    <script type='text/javascript'>
+        
+        function show() {
+            var content = "His name is " + CustomSave.name + " and age is " + this.age;
+            
+            document.getElementById('content').value = content;
+            
+        }
+    
+        function clear() {
+            
+            document.getElementById('content').value = '';
+            
+        }
+    
+    </script>
+
+</html>
