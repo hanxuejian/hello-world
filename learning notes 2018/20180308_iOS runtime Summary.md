@@ -316,6 +316,7 @@ typedef struct {
 	TestView[31775:1321424] attr_name : R , attr_value : 
 	TestView[31775:1321424] attr_name : C , attr_value : 
 	```
+	属性字符编码的详细含义，参见[OC Runtime 及消息转发机制](http://blog.csdn.net/u011374318/article/details/70210196)
 
 1. 向指定类中添加方法，可以覆盖父类中的方法，但是不能覆盖当前类中已有的方法
 
