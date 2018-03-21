@@ -11,3 +11,5 @@ For example:
 	3. pic-20170502-02.png
 
 Of course ,if the picture is used for the file in the directory 'learning notes' ,the date is same as the prefix of the file ,using the picture. 
+
+The image's quote format is `![](https://github.com/hanxuejian/hello-world/raw/master/pictures/2018/pic-20180303-01.png)`
