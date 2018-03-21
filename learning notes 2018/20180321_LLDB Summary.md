@@ -1,6 +1,6 @@
 # LLDB 小结
 ## 简介
-LLDB 是新一代高性能调试器，其是一组可重用组件的集合，这些组件大多是 LLVM 工程中的类库，如 Clang 表达式解析器或 LLVM 反汇编程序等。LLDB 是 Xcode 中默认的调试器，并且支持调试 C／C++ 程序。
+LLDB 是新一代高性能调试器，其是一组可重用组件的集合，这些组件大多是 LLVM 工程中的类库，如 Clang 表达式解析器或 LLVM 反汇编程序等。LLDB 是 Xcode 中默认的调试器，并且支持调试 C／C++ 程序，详情参考[官方文档](http://lldb.llvm.org/)。
 
 ## LLDB 命令
 LLDB 的命令格式不同于 GDB 的命令格式的随意，而是统一为如下格式：
@@ -363,3 +363,63 @@ this is a test 4
 	(lldb) thread select 2
 	```
 
+### 帧状态
+查看当前线程中当前帧（或者说方法/函数）中的变量/参数，可以使用 frame 命令。
+
+1. 查看本地变量及参数
+
+	```
+	(lldb) frame variable 
+	(ViewController *) self = 0x00007f8289d08b50
+	(SEL) _cmd = "testCoreGraphics"
+	(TestView *) view = 0x00007f828c102760
+	
+	//指定要查看的变量
+	((lldb) frame variable self->isa
+	(Class) self->isa = ViewController
+	```
+
+2. 打印对象	
+
+	```
+	(lldb) frame variable -o self
+	(ViewController *) self = 0x00007f8289d08b50 <ViewController: 0x7f8289d08b50>
+	```
+
+3. 选择栈中的方法
+
+	```
+	(lldb) frame select 2
+	frame #2: 0x000000010ca7446c UIKit`-[UIViewController loadViewIfRequired] + 1235
+	UIKit`-[UIViewController loadViewIfRequired]:
+	    0x10ca7446c <+1235>: movl   (%r14), %eax
+	    0x10ca7446f <+1238>: testl  %eax, %eax
+	    0x10ca74471 <+1240>: je     0x10ca7447f               ; <+1254>
+	    0x10ca74473 <+1242>: cmpl   $0x70000, %eax            ; imm = 0x70000 
+	(lldb) 
+	```
+
+### 修改变量或调用函数
+使用 expression 命令可以在调试过程中修改变量的值，或者执行函数。
+
+1. 修改变量值
+
+	```
+	(lldb) expression a
+	(int) $0 = 9
+	(lldb) frame variable a
+	(int) a = 9
+	(lldb) expression a=10
+	(int) $1 = 10
+	(lldb) frame variable a
+	(int) a = 10
+	(lldb) 
+	```
+2. 调用函数
+
+	```
+	(lldb) expression printf("execute function %i",a)
+	(int) $2 = 19
+	execute function 10
+	```
+	对于执行结果都会自动保存，以备他用。
