@@ -1,7 +1,7 @@
 # CrashReporter 简介
 CrashReporter 是 Mac OS X 下的调试工具，其会记录 Mac 下所有应用程序的崩溃信息。这些日志信息通常保存在路径 ~/Library/Logs/CrashReporter/ 下，当然，如果 CrashReporter 无法确定崩溃程序的所属用户，或者其用户是根用户，或者所属用户的路径无效或不可写，那么，崩溃日志信息会保存在路径 /Library/Logs/CrashReporter/ 下。
 
-每个崩溃日志信息均会分开保存在一个文件中，文件的命名形如： PPP_YYYY-MM-DD-HHMMSS_NNN.crash ，PPP 是应用程序名称，YYYY-MM-DD-HHMMSS 是崩溃发生的日期及时间，NNN 则是主机用户名。当然，CrashReporter 也会创建名称如 .PPP_NNN_CrashHistory.plist 的隐藏文件。
+每个崩溃日志信息均会分开保存在一个文件中，文件的命名形如：`PPP_YYYY-MM-DD-HHMMSS_NNN.crash` ，PPP 是应用程序名称，`YYYY-MM-DD-HHMMSS` 是崩溃发生的日期及时间，NNN 则是主机用户名。当然，CrashReporter 也会创建名称如 `.PPP_NNN_CrashHistory.plist` 的隐藏文件。
 为了避免日志信息占用大量存储空间，这些日志文件限制为20个。
 
 > 在 Mac OS X 10.5 之前，CrashReporter 创建的日志文件名称形如：PPP.crash.log ，PPP 是程序名称，同一个应用产生的崩溃信息均会被追加到同一个文件中，并且没有存储容量的限制。
